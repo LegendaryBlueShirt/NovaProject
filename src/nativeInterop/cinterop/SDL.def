@@ -1,0 +1,7 @@
+headers = SDL2/SDL.h SDL2/SDL_Image.h SDL2/SDL_syswm.h stdlib.h time.h windows.h
+entryPoint = SDL_main
+
+headerFilter = SDL2/SDL* stdlib.h time.h windows.h
+package = SDL
+
+compilerOpts = -pthread -msse4
