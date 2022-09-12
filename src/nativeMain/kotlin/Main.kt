@@ -7,8 +7,9 @@ import tinyfiledialogs.*
 actual fun getNativeWindow(): NovaWindow? {
     val container = KissContainer()
     return if(initSDL(container)) {
-        container.buildUi()
-        container
+        container.apply {
+            buildUi()
+        }
     } else {
         null
     }
@@ -38,7 +39,7 @@ class KissContainer: NovaWindow {
         window.pointed.visible = 1
     }
 
-    private fun render() {
+    override fun render() {
         SDL_RenderClear(renderer)
 
         kiss_window_draw(window, renderer)
@@ -47,94 +48,87 @@ class KissContainer: NovaWindow {
         SDL_RenderPresent(renderer)
     }
 
-    override fun runLoop(project: NovaProject) {
-        project.onStart(this)
-        var quit = false
+    val event = MemScope().allocArray<SDL_Event>(1)
+    override fun processEvents(project: NovaProject) {
         memScoped {
-            val event = allocArray<SDL_Event>(1)
-            while (!quit) {
-                while (SDL_PollEvent(event) != 0) {
-                    when(event[0].type) {
-                        SDL_QUIT -> quit = true
-                        SDL_KEYDOWN -> {
-                            val name = SDL_GetKeyName(event[0].key.keysym.sym)?.toKString()
-                            val code = event[0].key.keysym.scancode
-                            if(code == SDL_SCANCODE_ESCAPE) {
-                                quit = true
-                            } else {
-                                if(virtKeyMapping.containsKey(code)) {
-                                    val input = ButtonMap(type = ControlType.KEY, scancode = virtKeyMapping[code]!!, name = name)
-                                    project.handleInput(input)
-                                }
+            while (SDL_PollEvent(event) != 0) {
+                when(event[0].type) {
+                    SDL_QUIT -> project.quit()
+                    SDL_KEYDOWN -> {
+                        val name = SDL_GetKeyName(event[0].key.keysym.sym)?.toKString()
+                        val code = event[0].key.keysym.scancode
+                        if(code == SDL_SCANCODE_ESCAPE) {
+                            project.quit()
+                        } else {
+                            if(virtKeyMapping.containsKey(code)) {
+                                val input = ButtonMap(type = ControlType.KEY, scancode = virtKeyMapping[code]!!, name = name)
+                                project.handleInput(input)
                             }
                         }
-                        SDL_JOYBUTTONDOWN -> {
-                            val controller = event[0].jbutton.which
-                            val button = event[0].jbutton.button
-                            val input = ButtonMap(type = ControlType.BUTTON, controlId = controller, axisId = button.toInt(), name = "Joy $controller Button $button")
+                    }
+                    SDL_JOYBUTTONDOWN -> {
+                        val controller = event[0].jbutton.which
+                        val button = event[0].jbutton.button
+                        val input = ButtonMap(type = ControlType.BUTTON, controlId = controller, axisId = button.toInt(), name = "Joy $controller Button $button")
+                        project.handleInput(input)
+                    }
+                    SDL_JOYAXISMOTION -> {
+                        val value = event[0].jaxis.value
+                        val dir = if(value < -3200) 0 else if(value > 3200) 1 else 2
+                        if(dir < 2) {
+                            val controller = event[0].jaxis.which
+                            val axis = event[0].jaxis.axis
+                            val input = ButtonMap(
+                                type = ControlType.AXIS,
+                                controlId = controller,
+                                axisId = axis.toInt(),
+                                direction = dir,
+                                name = "Joy $controller Axis $axis ${if(dir == 0) "-" else "+"}"
+                            )
                             project.handleInput(input)
                         }
-                        SDL_JOYAXISMOTION -> {
-                            val value = event[0].jaxis.value
-                            val dir = if(value < -3200) 0 else if(value > 3200) 1 else 2
-                            if(dir < 2) {
-                                val controller = event[0].jaxis.which
-                                val axis = event[0].jaxis.axis
-                                val input = ButtonMap(
-                                    type = ControlType.AXIS,
-                                    controlId = controller,
-                                    axisId = axis.toInt(),
-                                    direction = dir,
-                                    name = "Joy $controller Axis $axis ${if(dir == 0) "-" else "+"}"
-                                )
-                                project.handleInput(input)
-                            }
+                    }
+                    SDL_JOYHATMOTION -> {
+                        val dir = event[0].jhat.value.toInt()
+                        if(dir != 0) {
+                            val controller = event[0].jhat.which
+                            val hatId = event[0].jhat.hat
+                            val input = ButtonMap(
+                                type = ControlType.HAT,
+                                controlId = controller,
+                                axisId = hatId.toInt(),
+                                direction = dir,
+                                name = "Joy $controller Hat $hatId $dir"
+                            )
+                            project.handleInput(input)
                         }
-                        SDL_JOYHATMOTION -> {
-                            val dir = event[0].jhat.value.toInt()
-                            if(dir != 0) {
-                                val controller = event[0].jhat.which
-                                val hatId = event[0].jhat.hat
-                                val input = ButtonMap(
-                                    type = ControlType.HAT,
-                                    controlId = controller,
-                                    axisId = hatId.toInt(),
-                                    direction = dir,
-                                    name = "Joy $controller Hat $hatId $dir"
-                                )
-                                project.handleInput(input)
-                            }
+                    }
+                    SDL_JOYDEVICEADDED -> {
+                        val id = event[0].jdevice.which
+                        SDL_JoystickOpen(id)?.let {
+                            joysticks[id] = it
                         }
-                        SDL_JOYDEVICEADDED -> {
-                            val id = event[0].jdevice.which
-                            SDL_JoystickOpen(id)?.let {
-                                joysticks[id] = it
-                            }
-                        }
-                        SDL_JOYDEVICEREMOVED -> {
-                            val id = event[0].jdevice.which
-                            joysticks[id]?.let {
-                                if(SDL_JoystickGetAttached(it) != 0u) {
-                                    SDL_JoystickClose(it)
-                                }
+                    }
+                    SDL_JOYDEVICEREMOVED -> {
+                        val id = event[0].jdevice.which
+                        joysticks[id]?.let {
+                            if(SDL_JoystickGetAttached(it) != 0u) {
+                                SDL_JoystickClose(it)
                             }
                         }
                     }
                 }
-                processInfo?.pointed?.let {
-                    GetExitCodeProcess(it.hProcess,processExitCode.ptr)
-                    if(processExitCode.value != STILL_ACTIVE) {
-                        CloseHandle(it.hProcess)
-                        CloseHandle(it.hThread)
-                        processInfo = null
-                        project.dosBoxFinished()
-                    }
+            }
+            processInfo?.pointed?.let {
+                GetExitCodeProcess(it.hProcess,processExitCode.ptr)
+                if(processExitCode.value != STILL_ACTIVE) {
+                    CloseHandle(it.hProcess)
+                    CloseHandle(it.hThread)
+                    processInfo = null
+                    project.dosBoxFinished()
                 }
-
-                render()
             }
         }
-        project.onEnd()
     }
 
     override fun clearText() {

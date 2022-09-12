@@ -4,8 +4,9 @@ import okio.buffer
 import okio.use
 
 fun main() {
-    val instance = getNativeWindow()
-    instance?.runLoop(NovaProject())
+    getNativeWindow()?.let {
+        NovaProject().runLoop(it)
+    }
 }
 
 expect fun getNativeWindow(): NovaWindow?
@@ -16,6 +17,7 @@ class NovaProject {
         MENU, KEYCONFIG1, LAUNCH, OMF_CONFIG, NOVA_CONFIG
     }
 
+    private var quit = false
     private var dosboxPath = ""
     private var omfPath = ""
     private val mapperPath = "omfMap.map".toPath()
@@ -26,6 +28,19 @@ class NovaProject {
     private val p1Config = getDefaultP1Config()
     private val p2Config = getDefaultP2Config()
     private lateinit var currentConfig: ControlMapping
+
+    fun runLoop(window: NovaWindow) {
+        onStart(window)
+        while (!quit) {
+            window.processEvents(this)
+            window.render()
+        }
+        onEnd()
+    }
+
+    fun quit() {
+        quit = true
+    }
 
     private fun getDefaultP1Config(): ControlMapping {
         return ControlMapping(
@@ -223,7 +238,7 @@ class NovaProject {
         }
     }
 
-    fun onStart(window: NovaWindow) {
+    private fun onStart(window: NovaWindow) {
         this.window = window
         loadNovaSettings()
         loadOmfConfig()
@@ -287,7 +302,7 @@ class NovaProject {
         return errors
     }
 
-    fun onEnd() {
+    private fun onEnd() {
         saveNovaSettings()
     }
 
@@ -401,7 +416,8 @@ class NovaProject {
 }
 
 interface NovaWindow {
-    fun runLoop(project: NovaProject)
+    fun processEvents(project: NovaProject)
+    fun render()
     fun showText(textLine: String)
     fun clearText()
     fun executeCommand(executable: String, command: String)
