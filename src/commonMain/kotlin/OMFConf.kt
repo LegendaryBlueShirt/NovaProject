@@ -12,14 +12,14 @@ class OMFConf(handle: FileHandle) {
     var blockDamage = 0
     var vitality = 100
     var jumpHeight = 100
-    var flags: OmfFlags
+    val flags: OmfFlags = UByteArray(8)
     var sound = 10
     var music = 10
 
-    private val controlSettings: ByteArray
-    private val p1ControlType: Int
-    private val unknowns: ByteArray
-    private val unkFooter: ByteArray
+    private val controlSettings = ByteArray(211)
+    private var p1ControlType: Int = -1
+    private val unknowns = ByteArray(18)
+    private val unkFooter = ByteArray(38)
 
     companion object {
         fun isValid(handle: FileHandle): Boolean {
@@ -28,24 +28,25 @@ class OMFConf(handle: FileHandle) {
     }
 
     init {
-        val buffer = handle.source().buffer()
-        handle.reposition(buffer, 0)
+        handle.source().buffer().use { buffer ->
+            handle.reposition(buffer, 0)
 
-        speed = buffer.readByte().toUByte().toInt()
-        controlSettings = buffer.readByteArray(211)
-        p1ControlType = buffer.readShortLe().toInt()
-        buffer.skip(4)
-        unknowns = buffer.readByteArray(18)
-        difficulty = buffer.readShortLe().toInt()
-        throwRange = buffer.readShortLe().toInt()
-        hitPause = buffer.readShortLe().toInt()
-        blockDamage = buffer.readShortLe().toInt()
-        vitality = buffer.readShortLe().toInt()
-        jumpHeight = buffer.readShortLe().toInt()
-        flags = buffer.readByteArray(8).toUByteArray()
-        sound = buffer.readByte().toUByte().toInt()
-        music = buffer.readByte().toUByte().toInt()
-        unkFooter = buffer.readByteArray(38)
+            speed = buffer.readByte().toUByte().toInt()
+            buffer.read(controlSettings)
+            p1ControlType = buffer.readShortLe().toInt()
+            buffer.skip(4)
+            buffer.read(unknowns)
+            difficulty = buffer.readShortLe().toInt()
+            throwRange = buffer.readShortLe().toInt()
+            hitPause = buffer.readShortLe().toInt()
+            blockDamage = buffer.readShortLe().toInt()
+            vitality = buffer.readShortLe().toInt()
+            jumpHeight = buffer.readShortLe().toInt()
+            buffer.readByteArray(8).toUByteArray().copyInto(flags)
+            sound = buffer.readByte().toUByte().toInt()
+            music = buffer.readByte().toUByte().toInt()
+            buffer.read(unkFooter)
+        }
     }
 
     fun buildFile(handle: FileHandle) {
@@ -70,15 +71,29 @@ class OMFConf(handle: FileHandle) {
         }
     }
 
-    fun print(window: NovaWindow) {
+    fun printGameOptions(window: NovaWindow) {
+        val p1PowerString = "${1 / (2.25 - .25*p1power)}".take(5)
+        val p2PowerString = "${1 / (2.25 - .25*p2power)}".take(5)
         window.clearText()
-        window.showText("=======  Configure OMF   =======")
+        window.showText("=======  Game Options   =======")
         window.showText("1. Hyper Mode - ${if (hyperMode) "On" else "Off"}")
         window.showText("2. Rehit Mode - ${if (rehitMode) "On" else "Off"}")
         window.showText("3. Hazards    - ${if (hazards) "On" else "Off"}")
         window.showText("4. Speed      - ${speed*10}%")
-        window.showText("5. P1 Power   - ${(0 until p1power).joinToString(separator = "") { "*" }}")
-        window.showText("6. P2 Power   - ${(0 until p2power).joinToString(separator = "") { "*" }}")
+        window.showText("5. P1 Power   - ${p1PowerString}x")
+        window.showText("6. P2 Power   - ${p2PowerString}x")
+        window.showText("7. Back")
+    }
+
+    fun printAVOptions(window: NovaWindow) {
+        window.clearText()
+        window.showText("===== AudioVisual Options =====")
+        window.showText("1. Hyper Mode - ${if (hyperMode) "On" else "Off"}")
+        window.showText("2. Rehit Mode - ${if (rehitMode) "On" else "Off"}")
+        window.showText("3. Hazards    - ${if (hazards) "On" else "Off"}")
+        window.showText("4. Speed      - ${speed*10}%")
+        window.showText("5. Sound   - ${(0 until sound).joinToString(separator = "") { "*" }}")
+        window.showText("6. Music   - ${(0 until music).joinToString(separator = "") { "*" }}")
         window.showText("7. Back")
     }
 
@@ -137,6 +152,33 @@ class OMFConf(handle: FileHandle) {
             }
             flags[2] = rest.toUByte()
         }
+
+    var animations: Boolean
+        get() {
+            return (flags[2].toInt() and 0x80) != 0
+        }
+        set(value) {
+            var rest = flags[2].toInt() and 0x7F
+            if(value) {
+                rest = rest or 0x80
+            }
+            flags[2] = rest.toUByte()
+        }
+
+    var screenShakes: Boolean
+        get() {
+            return (flags[2].toInt() and 0x40) != 0
+        }
+        set(value) {
+            var rest = flags[2].toInt() and 0xBF
+            if(value) {
+                rest = rest or 0x40
+            }
+            flags[2] = rest.toUByte()
+        }
+
+    //var shadows: Int
+
 }
 
 typealias OmfFlags = UByteArray

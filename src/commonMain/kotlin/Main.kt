@@ -1,6 +1,5 @@
 import okio.FileSystem
 import okio.Path.Companion.toPath
-import okio.buffer
 import okio.use
 
 fun main() {
@@ -18,15 +17,11 @@ class NovaProject {
     }
 
     private var quit = false
-    private var dosboxPath = ""
-    private var omfPath = ""
-    private val mapperPath = "omfMap.map".toPath()
-    private val confPath = "omf.conf".toPath()
     private lateinit var window: NovaWindow
     private var currentState = State.MENU
     private var omfConfig: OMFConf? = null
-    private val p1Config = getDefaultP1Config()
-    private val p2Config = getDefaultP2Config()
+    private val novaConf = NovaConf("nova.cfg".toPath())
+    private val dosboxConf = DOSBoxConf()
     private lateinit var currentConfig: ControlMapping
 
     fun runLoop(window: NovaWindow) {
@@ -42,28 +37,6 @@ class NovaProject {
         quit = true
     }
 
-    private fun getDefaultP1Config(): ControlMapping {
-        return ControlMapping(
-            up = ButtonMap(type = ControlType.KEY, scancode = VIRT_UP, name = "Up"),
-            down = ButtonMap(type = ControlType.KEY, scancode = VIRT_DOWN, name = "Down"),
-            left = ButtonMap(type = ControlType.KEY, scancode = VIRT_LEFT, name = "Left"),
-            right = ButtonMap(type = ControlType.KEY, scancode = VIRT_RIGHT, name = "Right"),
-            punch = ButtonMap(type = ControlType.KEY, scancode = VIRT_RETURN, name = "Return"),
-            kick = ButtonMap(type = ControlType.KEY, scancode = VIRT_RSHIFT, name = "Right Shift")
-        )
-    }
-
-    private fun getDefaultP2Config(): ControlMapping {
-        return ControlMapping(
-            up = ButtonMap(type = ControlType.KEY, scancode = VIRT_W, name = "W"),
-            down = ButtonMap(type = ControlType.KEY, scancode = VIRT_S, name = "S"),
-            left = ButtonMap(type = ControlType.KEY, scancode = VIRT_A, name = "A"),
-            right = ButtonMap(type = ControlType.KEY, scancode = VIRT_D, name = "D"),
-            punch = ButtonMap(type = ControlType.KEY, scancode = VIRT_LSHIFT, name = "Left Shift"),
-            kick = ButtonMap(type = ControlType.KEY, scancode = VIRT_LCTRL, name = "Left Ctrl")
-        )
-    }
-
     fun handleInput(input: ButtonMap) {
         when(currentState) {
             State.MENU -> menuHandleScancode(input.scancode)
@@ -76,8 +49,8 @@ class NovaProject {
 
     private fun menuHandleScancode(scancode: Int) {
         when(scancode) {
-            VIRT_1 -> startKeyconfig(p1Config)
-            VIRT_2 -> startKeyconfig(p2Config)
+            VIRT_1 -> startKeyconfig(novaConf.p1Config)
+            VIRT_2 -> startKeyconfig(novaConf.p2Config)
             VIRT_3 -> startNovaConfig()
             VIRT_4 -> startDosBox()
             VIRT_5 -> startOmfConfig()
@@ -88,19 +61,22 @@ class NovaProject {
     private fun novaConfigHandleScancode(scancode: Int) {
         when(scancode) {
             VIRT_1 -> {
-                dosboxPath = window.showFileChooser(dosboxPath.ifEmpty { ".\\DOSBox.exe" }, "Select DOSBox.exe")
+                novaConf.dosboxPath = window.showFileChooser(novaConf.dosboxPath.ifEmpty { ".\\DOSBox.exe" }, "Select DOSBox.exe")
             }
             VIRT_2 -> {
-                omfPath = window.showFolderChooser(omfPath.ifEmpty { "." }, "Select OMF2097 Location")
+                novaConf.omfPath = window.showFolderChooser(novaConf.omfPath.ifEmpty { "." }, "Select OMF2097 Location")
                 loadOmfConfig()
             }
-            VIRT_3 -> { /* Joystick Toggle */ }
+            VIRT_3 -> {
+                novaConf.joyEnabled = !novaConf.joyEnabled
+                window.setJoystickEnabled(novaConf.joyEnabled)
+            }
             VIRT_4 -> {
                 startMainMenu()
                 return
             }
         }
-        printNovaConfigOptions()
+        novaConf.printNovaConfigOptions(window)
     }
 
     private fun omfConfigHandleScancode(scancode: Int) {
@@ -117,7 +93,7 @@ class NovaProject {
                     return
                 }
             }
-            omfConfig.print(window)
+            omfConfig.printGameOptions(window)
         }
     }
 
@@ -185,22 +161,21 @@ class NovaProject {
             window.showText("=======  DOSBox Running  =======")
             currentState = State.LAUNCH
             writeOmfConfig()
-            writeDosboxMapperFile()
-            writeDosboxConfFile()
-            val dosboxConfPath = getFileSystem().canonicalize(confPath)
-            val separatorPosition = dosboxPath.lastIndexOf('\\')
-            val exe = dosboxPath.substring(separatorPosition + 1)
+            dosboxConf.writeConfFiles(novaConf)
+            val dosboxConfPath = dosboxConf.getConfPath()
+            val separatorPosition = novaConf.dosboxPath.lastIndexOf('\\')
+            val exe = novaConf.dosboxPath.substring(separatorPosition + 1)
             val args = listOf(
                 exe,
                 "-noconsole",
                 "-conf \"$dosboxConfPath\"",
-                "-c \"mount c $omfPath\"",
+                "-c \"mount c ${novaConf.omfPath}\"",
                 "-c \"c:\"",
                 "-c \"file0001 two_player\"",
                 "-c \"exit\""
             )
             val command = args.joinToString(" ")
-            window.executeCommand(executable = dosboxPath, command = command)
+            window.executeCommand(executable = novaConf.dosboxPath, command = command)
         }
     }
 
@@ -217,7 +192,7 @@ class NovaProject {
     private fun startOmfConfig() {
         omfConfig?.let {
             currentState = State.OMF_CONFIG
-            it.print(window)
+            it.printGameOptions(window)
         }
     }
 
@@ -228,11 +203,11 @@ class NovaProject {
 
     private fun startNovaConfig() {
         currentState = State.NOVA_CONFIG
-        printNovaConfigOptions()
+        novaConf.printNovaConfigOptions(window)
     }
 
     private fun writeOmfConfig() {
-        val configPath = omfPath.toPath().div("SETUP.CFG")
+        val configPath = novaConf.omfPath.toPath().div("SETUP.CFG")
         getFileSystem().openReadWrite(configPath).use {
             omfConfig?.buildFile(it)
         }
@@ -240,13 +215,13 @@ class NovaProject {
 
     private fun onStart(window: NovaWindow) {
         this.window = window
-        loadNovaSettings()
+        window.setJoystickEnabled(novaConf.joyEnabled)
         loadOmfConfig()
         printMenuOptions()
     }
 
     private fun loadOmfConfig() {
-        val configPath = omfPath.toPath().div("SETUP.CFG")
+        val configPath = novaConf.omfPath.toPath().div("SETUP.CFG")
         val fs = getFileSystem()
         if(fs.exists(configPath)) {
             fs.openReadOnly(configPath).use {
@@ -254,36 +229,27 @@ class NovaProject {
             }
         }
     }
-
-    private fun getBoundInputs(): List<ButtonMap> {
-        return listOf(
-            p1Config.up,p1Config.down,p1Config.left,p1Config.right,p1Config.punch,p1Config.kick,
-            p2Config.up,p2Config.down,p2Config.left,p2Config.right,p2Config.punch,p2Config.kick,
-        )
-    }
-
-    private fun isUsingHat(): Boolean {
-        getBoundInputs().find { it.type == ControlType.HAT }?.let {
-            return true
-        }
-        return false
-    }
-
     private fun getErrors(): List<String> {
         val errors = mutableListOf<String>()
-        val boundInputs = getBoundInputs()
-        if(isUsingHat()) {
+        val boundInputs = novaConf.getBoundInputs()
+        if(novaConf.isUsingHat()) {
             val devices = boundInputs.filter { it.type != ControlType.KEY }.map { it.controlId }.distinct()
             if(devices.size > 1) {
                 errors.add("Hat not supported with two joysticks")
+            }
+        }
+        if(!novaConf.joyEnabled) {
+            val joyInputs = boundInputs.filter { it.type != ControlType.KEY }
+            if(joyInputs.size > 1) {
+                errors.add("Joysticks disabled, please remap buttons")
             }
         }
         if(boundInputs.distinct().size < boundInputs.size) {
             errors.add("Duplicate inputs detected")
         }
         val fs = getFileSystem()
-        val pathToOmf = omfPath.toPath()
-        if(omfPath.isBlank() || !fs.exists(pathToOmf)) {
+        val pathToOmf = novaConf.omfPath.toPath()
+        if(novaConf.omfPath.isBlank() || !fs.exists(pathToOmf)) {
             errors.add("OMF location not configured!")
         } else {
             val omffiles = fs.list(pathToOmf)
@@ -293,8 +259,8 @@ class NovaProject {
                 errors.add("Missing files in OMF location!")
             }
         }
-        val pathToDosbox = dosboxPath.toPath()
-        if(dosboxPath.isBlank() || !fs.exists(pathToDosbox)) {
+        val pathToDosbox = novaConf.dosboxPath.toPath()
+        if(novaConf.dosboxPath.isBlank() || !fs.exists(pathToDosbox)) {
             errors.add("DOSBox location not configured!")
         } else if(!fs.metadata(pathToDosbox).isRegularFile) {
             errors.add("DOSBox location is not a file!")
@@ -303,18 +269,7 @@ class NovaProject {
     }
 
     private fun onEnd() {
-        saveNovaSettings()
-    }
-
-    private fun printNovaConfigOptions() {
-        window.clearText()
-        window.showText("=======   Nova Options   =======")
-        window.showText("1. DOSBox location")
-        window.showText("- $dosboxPath")
-        window.showText("2. OMF location")
-        window.showText("- $omfPath")
-        window.showText("3. Joystick Support - On")
-        window.showText("4. Back")
+        novaConf.save()
     }
 
     private fun printMenuOptions() {
@@ -330,89 +285,6 @@ class NovaProject {
             window.showText(it)
         }
     }
-
-    private fun writeDosboxConfFile() {
-        val fs = getFileSystem()
-        val absoluteMapperPath = fs.canonicalize(mapperPath)
-        fs.openReadWrite(confPath).use { handle ->
-            handle.sink().buffer().use {
-                it.writeUtf8(
-                    "[sdl]\nwaitonerror=false\nmapperfile=${absoluteMapperPath}\n"
-                )
-                it.writeUtf8(
-                    "[cpu]\ncycles=fixed 14500\n"
-                )
-                val joyType = if(isUsingHat()) "fcs" else "auto"
-                it.writeUtf8(
-                    "[joystick]\njoysticktype=$joyType\n"
-                )
-            }
-        }
-    }
-
-    private fun writeDosboxMapperFile() {
-        val fs = getFileSystem()
-        fs.openReadWrite(mapperPath).use { handle ->
-            handle.sink().buffer().use {
-                it.writeUtf8("key_esc \"key 27\"\n")
-                p1Config.apply {
-                    it.writeUtf8("key_up \"${up.dosboxMap()}\"\n")
-                    it.writeUtf8("key_down \"${down.dosboxMap()}\"\n")
-                    it.writeUtf8("key_left \"${left.dosboxMap()}\"\n")
-                    it.writeUtf8("key_right \"${right.dosboxMap()}\"\n")
-                    it.writeUtf8("key_enter \"${punch.dosboxMap()}\"\n")
-                    it.writeUtf8("key_rshift \"${kick.dosboxMap()}\"\n")
-                }
-                p2Config.apply {
-                    it.writeUtf8("key_w \"${up.dosboxMap()}\"\n")
-                    it.writeUtf8("key_x \"${down.dosboxMap()}\"\n")
-                    it.writeUtf8("key_a \"${left.dosboxMap()}\"\n")
-                    it.writeUtf8("key_d \"${right.dosboxMap()}\"\n")
-                    it.writeUtf8("key_tab \"${punch.dosboxMap()}\"\n")
-                    it.writeUtf8("key_lctrl \"${kick.dosboxMap()}\"\n")
-                }
-            }
-        }
-    }
-
-    private fun saveNovaSettings() {
-        val fs = getFileSystem()
-        fs.openReadWrite("nova.cfg".toPath()).use { handle ->
-            handle.sink().buffer().use {
-                it.writeUtf8("$dosboxPath\n")
-                it.writeUtf8("$omfPath\n")
-                getBoundInputs().forEach { binding ->
-                    it.writeUtf8("${binding.toNovaConf()}\n")
-                }
-            }
-        }
-    }
-
-    private fun loadNovaSettings() {
-        val location = "nova.cfg".toPath()
-        val fs = getFileSystem()
-        if(!fs.exists(location)) {
-            saveNovaSettings()
-        }
-        fs.openReadOnly(location).use { handle ->
-            handle.source().buffer().use {
-                dosboxPath = it.readUtf8Line()?:""
-                omfPath = it.readUtf8Line()?:""
-                p1Config.up = (it.readUtf8Line()?:"").toButtonMap()
-                p1Config.down = (it.readUtf8Line()?:"").toButtonMap()
-                p1Config.left = (it.readUtf8Line()?:"").toButtonMap()
-                p1Config.right = (it.readUtf8Line()?:"").toButtonMap()
-                p1Config.punch = (it.readUtf8Line()?:"").toButtonMap()
-                p1Config.kick = (it.readUtf8Line()?:"").toButtonMap()
-                p2Config.up = (it.readUtf8Line()?:"").toButtonMap()
-                p2Config.down = (it.readUtf8Line()?:"").toButtonMap()
-                p2Config.left = (it.readUtf8Line()?:"").toButtonMap()
-                p2Config.right = (it.readUtf8Line()?:"").toButtonMap()
-                p2Config.punch = (it.readUtf8Line()?:"").toButtonMap()
-                p2Config.kick = (it.readUtf8Line()?:"").toButtonMap()
-            }
-        }
-    }
 }
 
 interface NovaWindow {
@@ -423,6 +295,7 @@ interface NovaWindow {
     fun executeCommand(executable: String, command: String)
     fun showFileChooser(start: String, prompt: String): String
     fun showFolderChooser(start: String, prompt: String): String
+    fun setJoystickEnabled(joyEnabled: Boolean)
 }
 
 enum class ControlType {
@@ -451,23 +324,6 @@ fun ButtonMap.dosboxMap(): String {
         }
         ControlType.BUTTON -> {
             "stick_$controlId button $axisId"
-        }
-    }
-}
-
-fun ButtonMap.toNovaConf(): String {
-    return when(type) {
-        ControlType.KEY -> {
-            "key:$scancode:$name"
-        }
-        ControlType.AXIS -> {
-            "axis:$controlId:$axisId:$direction:$name"
-        }
-        ControlType.HAT -> {
-            "hat:$controlId:$axisId:$direction:$name"
-        }
-        ControlType.BUTTON -> {
-            "button:$controlId:$axisId:$name"
         }
     }
 }

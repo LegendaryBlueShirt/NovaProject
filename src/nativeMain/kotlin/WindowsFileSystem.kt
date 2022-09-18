@@ -189,5 +189,5 @@ class WindowsSink(val handle: FileHandle): Sink {
 }
 
 actual fun getFileSystem(): FileSystem {
-    return WindowsFileSystem
+    return FileSystem.SYSTEM
 }

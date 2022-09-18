@@ -15,17 +15,27 @@ actual fun getNativeWindow(): NovaWindow? {
     }
 }
 
+var processInfo: CPointer<PROCESS_INFORMATION>? = null
+val processExitCode = MemScope().alloc<DWORDVar>()
+
 class KissContainer: NovaWindow {
     private var renderer: CPointer<SDL_Renderer>? = null
     private val objects = MemScope().alloc<kiss_array>().ptr
     private val window = MemScope().alloc<kiss_window>().ptr
     private val text = MemScope().alloc<kiss_textbox>().ptr
     private val winobj = MemScope().alloc<kiss_array>().ptr
-    private var processInfo: CPointer<PROCESS_INFORMATION>? = null
-    private val processExitCode = MemScope().alloc<DWORDVar>()
     private val joysticks = mutableMapOf<Int, CPointer<SDL_Joystick>>()
 
+    val winKeyHook = staticCFunction { nCode: Int, wParam: WPARAM, lParam: LPARAM ->
+        if (wParam.toInt() == WM_KEYDOWN && nCode == HC_ACTION) {
+            handleWinKey(lParam)
+        }
+        return@staticCFunction CallNextHookEx(null, nCode, wParam, lParam)
+    }
+
     fun init(): Boolean {
+        SetWindowsHookEx?.invoke(WH_KEYBOARD_LL, winKeyHook, null, 0u)
+
         renderer = kiss_init("Nova Project".cstr, objects, 320, 240)
         return renderer != null
     }
@@ -49,6 +59,7 @@ class KissContainer: NovaWindow {
     }
 
     val event = MemScope().allocArray<SDL_Event>(1)
+    val winmsg = MemScope().alloc<tagMSG>().ptr
     override fun processEvents(project: NovaProject) {
         memScoped {
             while (SDL_PollEvent(event) != 0) {
@@ -125,9 +136,21 @@ class KissContainer: NovaWindow {
                     CloseHandle(it.hProcess)
                     CloseHandle(it.hThread)
                     processInfo = null
+                    entryPointer = 0L
                     project.dosBoxFinished()
+                } else {
+                    if(entryPointer == 0L) {
+                        entryPointer = getBaseAddress(it.hProcess)
+                        if(entryPointer != 0L) {
+                            println("Entry pointer at $entryPointer")
+                        }
+                    }
                 }
             }
+        }
+        while(PeekMessage?.invoke(winmsg, null, 0u, 0u, PM_REMOVE.toUInt()) != 0) {
+            TranslateMessage(winmsg)
+            DispatchMessage?.invoke(winmsg)
         }
     }
 
@@ -165,6 +188,30 @@ class KissContainer: NovaWindow {
             )
         return selectedFile?.toKStringFromUtf16()?:""
     }
+
+    override fun setJoystickEnabled(joyEnabled: Boolean) {
+        if(joyEnabled) {
+            SDL_JoystickEventState(SDL_ENABLE)
+            val joys = SDL_NumJoysticks()
+            (0 until joys).forEach { id ->
+                if(joysticks.containsKey(id)) {
+                    if(SDL_JoystickGetAttached(joysticks[id]!!) != 0u) {
+                        return@forEach
+                    }
+                }
+                SDL_JoystickOpen(id)?.let {
+                    joysticks[id] = it
+                }
+            }
+        } else {
+            SDL_JoystickEventState(SDL_IGNORE)
+            joysticks.forEach { (_, joy) ->
+                if (SDL_JoystickGetAttached(joy) != 0u) {
+                    SDL_JoystickClose(joy)
+                }
+            }
+        }
+    }
 }
 
 fun initSDL(container: KissContainer): Boolean {
@@ -176,8 +223,100 @@ fun initSDL(container: KissContainer): Boolean {
         println("SDL could not initialize! SDL_Error: ${SDL_GetError()}")
         success = false
     }
-    SDL_JoystickEventState(SDL_ENABLE)
     return success
+}
+
+var entryPointer = 0L
+val p1HpValue = MemScope().alloc<UWORD>(0u)
+val p2HpValue = MemScope().alloc<UWORD>(0u)
+val p1ScoreValue = MemScope().alloc<ULONG>(0u)
+val p1PosXValue = MemScope().alloc<ULONG>(0u)
+val p1PosYValue = MemScope().alloc<ULONG>(0u)
+val p2PosXValue = MemScope().alloc<ULONG>(0u)
+val p2PosYValue = MemScope().alloc<ULONG>(0u)
+val p1StunValue = MemScope().alloc<ULONG>(0u)
+val p2StunValue = MemScope().alloc<ULONG>(0u)
+
+fun handleWinKey(keyPtr: Long) {
+    processInfo?.pointed?.let { process ->
+        GetExitCodeProcess(process.hProcess, processExitCode.ptr)
+        if (processExitCode.value == STILL_ACTIVE) {
+            keyPtr.toCPointer<tagKBDLLHOOKSTRUCT>()?.let { keyHook ->
+                val key = keyHook.pointed
+                when (key.vkCode) {
+                    0x70u -> { //F1
+                        p1HpValue.value = 190u
+                        p2HpValue.value = 190u
+                        p1PosYValue.value = groundYPosition
+                        p2PosYValue.value = groundYPosition
+                        p1PosXValue.value = p1StartXPosition
+                        p2PosXValue.value = p2StartXPosition
+                        p1StunValue.value = 0u
+                        p2StunValue.value = 0u
+                        writeMemoryValue(p1HP, p1HpValue.ptr, 2u)
+                        writeMemoryValue(p2HP, p2HpValue.ptr, 2u)
+                        writeMemoryValue(p1posX, p1PosXValue.ptr, 4u)
+                        writeMemoryValue(p2posX, p2PosXValue.ptr, 4u)
+                        writeMemoryValue(p1posY, p1PosYValue.ptr, 4u)
+                        writeMemoryValue(p2posY, p2PosYValue.ptr, 4u)
+                        writeMemoryValue(p1Stun, p1StunValue.ptr, 4u)
+                        writeMemoryValue(p2Stun, p2StunValue.ptr, 4u)
+                    }
+                    0x74u -> { //F5
+                        //getBaseAddress(process.hProcess!!)
+                        readMemoryValue(p1ScorePointer, p1ScoreValue.ptr, 4u)
+                        readMemoryValue(p1posX, p1PosXValue.ptr, 4u)
+                        readMemoryValue(p1posY, p1PosYValue.ptr, 4u)
+                        readMemoryValue(p2posX, p2PosXValue.ptr, 4u)
+                        readMemoryValue(p2posY, p2PosYValue.ptr, 4u)
+                        readMemoryValue(p1Stun, p1StunValue.ptr, 4u)
+                        readMemoryValue(p2Stun, p2StunValue.ptr, 4u)
+                        println("Success! ${p1ScoreValue.value} ${p2PosYValue.value} ${p1PosXValue.value} ${p2PosXValue.value}")
+                    }
+
+                    else -> {}
+                }
+            }
+        }
+    }
+}
+
+fun readMemoryValue(offset: Long, output: CPointer<out CPointed>, outputSize: ULong) {
+    if(entryPointer == 0L) return
+    val result = ReadProcessMemory(processInfo?.pointed?.hProcess,
+        interpretCPointer(nativeNullPtr + entryPointer + offset), output, outputSize, null)
+    if (result == 0) {
+        println("Error! ${GetLastError()}")
+    }
+}
+
+fun writeMemoryValue(offset: Long, input: CPointer<out CPointed>, inputSize: ULong) {
+    if(entryPointer == 0L) return
+    val result = WriteProcessMemory(processInfo?.pointed?.hProcess,
+        interpretCPointer(nativeNullPtr + entryPointer + offset), input, inputSize, null)
+    if (result == 0) {
+        println("Error! ${GetLastError()}")
+    }
+}
+
+// Code adapted from a cheatengine script
+// https://fearlessrevolution.com/viewtopic.php?f=11&t=7264
+// Compatibility with multiple versions of DOSBox would frankly be impossible without this.
+fun getBaseAddress(handle: HANDLE?): Long {
+    val mem = MemScope().alloc<MEMORY_BASIC_INFORMATION>()
+    var pointer = interpretCPointer<ULONGVar>(nativeNullPtr)
+    while(true) {
+        val result = VirtualQueryEx(handle, pointer, mem.ptr, sizeOf<MEMORY_BASIC_INFORMATION>().toULong())
+        if(result == 0uL) {
+            return 0
+        } else {
+            if((mem.RegionSize >= 0x1001000uL) && (mem.AllocationProtect == 4u)) {
+                break
+            }
+            pointer = interpretCPointer(nativeNullPtr + pointer.toLong() + mem.RegionSize.toLong())
+        }
+    }
+    return mem.BaseAddress.toLong() + 32
 }
 
 fun executeCommandNative(executable: String, command: String): CPointer<PROCESS_INFORMATION> {
