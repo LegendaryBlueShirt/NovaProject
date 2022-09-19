@@ -2,8 +2,10 @@
 // Game var locations
 val p1ScorePointer = 0x1FA250L
 val p1HP = 0x15CE50L
+val p1MaxHP = 0x15CE52L
 val p1HPAlt = 0x15CE58L //Sometimes P1 HP is here instead, I don't know what causes this.
 val p2HP = 0x15E144L
+val p2MaxHP = 0x15E146L
 val p1Stun = 0x2150C0L
 val p1posX = 0x2150E0L
 val p1posY = 0x2150E4L

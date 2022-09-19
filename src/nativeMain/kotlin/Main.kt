@@ -227,15 +227,8 @@ fun initSDL(container: KissContainer): Boolean {
 }
 
 var entryPointer = 0L
-val p1HpValue = MemScope().alloc<UWORD>(0u)
-val p2HpValue = MemScope().alloc<UWORD>(0u)
-val p1ScoreValue = MemScope().alloc<ULONG>(0u)
-val p1PosXValue = MemScope().alloc<ULONG>(0u)
-val p1PosYValue = MemScope().alloc<ULONG>(0u)
-val p2PosXValue = MemScope().alloc<ULONG>(0u)
-val p2PosYValue = MemScope().alloc<ULONG>(0u)
-val p1StunValue = MemScope().alloc<ULONG>(0u)
-val p2StunValue = MemScope().alloc<ULONG>(0u)
+val shortPointer = MemScope().alloc<UWORD>(0u)
+val intPointer = MemScope().alloc<ULONG>(0u)
 
 fun handleWinKey(keyPtr: Long) {
     processInfo?.pointed?.let { process ->
@@ -245,33 +238,32 @@ fun handleWinKey(keyPtr: Long) {
                 val key = keyHook.pointed
                 when (key.vkCode) {
                     0x70u -> { //F1
-                        p1HpValue.value = 190u
-                        p2HpValue.value = 190u
-                        p1PosYValue.value = groundYPosition
-                        p2PosYValue.value = groundYPosition
-                        p1PosXValue.value = p1StartXPosition
-                        p2PosXValue.value = p2StartXPosition
-                        p1StunValue.value = 0u
-                        p2StunValue.value = 0u
-                        writeMemoryValue(p1HP, p1HpValue.ptr, 2u)
-                        writeMemoryValue(p2HP, p2HpValue.ptr, 2u)
-                        writeMemoryValue(p1posX, p1PosXValue.ptr, 4u)
-                        writeMemoryValue(p2posX, p2PosXValue.ptr, 4u)
-                        writeMemoryValue(p1posY, p1PosYValue.ptr, 4u)
-                        writeMemoryValue(p2posY, p2PosYValue.ptr, 4u)
-                        writeMemoryValue(p1Stun, p1StunValue.ptr, 4u)
-                        writeMemoryValue(p2Stun, p2StunValue.ptr, 4u)
+                        var maxHp = readMemoryShort(p1MaxHP)
+                        shortPointer.value = maxHp
+                        writeMemoryValue(p1HP, shortPointer)
+                        maxHp = readMemoryShort(p2MaxHP)
+                        shortPointer.value = maxHp
+                        writeMemoryValue(p2HP, shortPointer)
+                        intPointer.value = groundYPosition
+                        writeMemoryValue(p1posY, intPointer)
+                        writeMemoryValue(p2posY, intPointer)
+                        intPointer.value = p1StartXPosition
+                        writeMemoryValue(p1posX, intPointer)
+                        intPointer.value = p2StartXPosition
+                        writeMemoryValue(p2posX, intPointer)
+                        intPointer.value = 0u
+                        writeMemoryValue(p1Stun, intPointer)
+                        writeMemoryValue(p2Stun, intPointer)
                     }
                     0x74u -> { //F5
-                        //getBaseAddress(process.hProcess!!)
-                        readMemoryValue(p1ScorePointer, p1ScoreValue.ptr, 4u)
-                        readMemoryValue(p1posX, p1PosXValue.ptr, 4u)
-                        readMemoryValue(p1posY, p1PosYValue.ptr, 4u)
-                        readMemoryValue(p2posX, p2PosXValue.ptr, 4u)
-                        readMemoryValue(p2posY, p2PosYValue.ptr, 4u)
-                        readMemoryValue(p1Stun, p1StunValue.ptr, 4u)
-                        readMemoryValue(p2Stun, p2StunValue.ptr, 4u)
-                        println("Success! ${p1ScoreValue.value} ${p2PosYValue.value} ${p1PosXValue.value} ${p2PosXValue.value}")
+                        //readMemoryValue(p1ScorePointer, p1ScoreValue.ptr, 4u)
+                        //readMemoryValue(p1posX, p1PosXValue.ptr, 4u)
+                        //readMemoryValue(p1posY, p1PosYValue.ptr, 4u)
+                        //readMemoryValue(p2posX, p2PosXValue.ptr, 4u)
+                        //readMemoryValue(p2posY, p2PosYValue.ptr, 4u)
+                        //readMemoryValue(p1Stun, p1StunValue.ptr, 4u)
+                        //readMemoryValue(p2Stun, p2StunValue.ptr, 4u)
+                        //println("Success! ${p1ScoreValue.value} ${p2PosYValue.value} ${p1PosXValue.value} ${p2PosXValue.value}")
                     }
 
                     else -> {}
@@ -281,6 +273,15 @@ fun handleWinKey(keyPtr: Long) {
     }
 }
 
+fun readMemoryShort(offset: Long): UShort {
+    readMemoryValue(offset, shortPointer.ptr, 2u)
+    return shortPointer.value
+}
+
+fun readMemoryInt(offset: Long): UInt {
+    readMemoryValue(offset, intPointer.ptr, 4u)
+    return intPointer.value
+}
 fun readMemoryValue(offset: Long, output: CPointer<out CPointed>, outputSize: ULong) {
     if(entryPointer == 0L) return
     val result = ReadProcessMemory(processInfo?.pointed?.hProcess,
@@ -290,6 +291,13 @@ fun readMemoryValue(offset: Long, output: CPointer<out CPointed>, outputSize: UL
     }
 }
 
+fun writeMemoryValue(offset: Long, input: UShortVarOf<UShort>) {
+    writeMemoryValue(offset, input.ptr, 2u)
+}
+
+fun writeMemoryValue(offset: Long, input: UIntVarOf<UInt>) {
+    writeMemoryValue(offset, input.ptr, 4u)
+}
 fun writeMemoryValue(offset: Long, input: CPointer<out CPointed>, inputSize: ULong) {
     if(entryPointer == 0L) return
     val result = WriteProcessMemory(processInfo?.pointed?.hProcess,
