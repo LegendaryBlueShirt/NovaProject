@@ -21,6 +21,12 @@ class DOSBoxConf {
         fs.openReadWrite(mapperPath).use { handle ->
             handle.sink().buffer().use {
                 it.writeUtf8("key_esc \"key 27\"\n")
+                it.writeUtf8("key_1 \"key 49\"\n")
+                it.writeUtf8("key_2 \"key 50\"\n")
+                it.writeUtf8("key_3 \"key 51\"\n")
+                it.writeUtf8("key_4 \"key 52\"\n")
+                it.writeUtf8("key_5 \"key 53\"\n")
+                it.writeUtf8("key_6 \"key 54\"\n")
                 p1Config.apply {
                     it.writeUtf8("key_up \"${up.dosboxMap()}\"\n")
                     it.writeUtf8("key_down \"${down.dosboxMap()}\"\n")
@@ -41,7 +47,7 @@ class DOSBoxConf {
         }
     }
 
-    fun writeDosboxConfFile(novaConf: NovaConf) {
+    private fun writeDosboxConfFile(novaConf: NovaConf) {
         val fs = getFileSystem()
         val absoluteMapperPath = fs.canonicalize(mapperPath)
         fs.openReadWrite(confPath).use { handle ->

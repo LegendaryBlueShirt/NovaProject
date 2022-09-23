@@ -8,6 +8,7 @@ class NovaConf(val location: Path) {
     val p1Config = getDefaultP1Config()
     val p2Config = getDefaultP2Config()
     var joyEnabled = true
+    var saveReplays = false
 
     init {
         val fs = getFileSystem()
@@ -31,6 +32,7 @@ class NovaConf(val location: Path) {
                 p2Config.punch = (it.readUtf8Line()?:"").toButtonMap()
                 p2Config.kick = (it.readUtf8Line()?:"").toButtonMap()
                 joyEnabled = (it.readUtf8Line()?:"true").toBoolean()
+                saveReplays = (it.readUtf8Line()?:"false").toBoolean()
             }
         }
     }
@@ -44,7 +46,8 @@ class NovaConf(val location: Path) {
                 getBoundInputs().forEach { binding ->
                     it.writeUtf8("${binding.toNovaConf()}\n")
                 }
-                it.writeUtf8(joyEnabled.toString())
+                it.writeUtf8("$joyEnabled\n")
+                it.writeUtf8(saveReplays.toString())
             }
         }
     }

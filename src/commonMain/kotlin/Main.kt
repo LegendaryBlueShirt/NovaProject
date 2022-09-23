@@ -1,4 +1,5 @@
 import okio.FileSystem
+import okio.Path
 import okio.Path.Companion.toPath
 import okio.use
 
@@ -13,7 +14,7 @@ expect fun getFileSystem(): FileSystem
 
 class NovaProject {
     enum class State {
-        MENU, KEYCONFIG1, LAUNCH, OMF_CONFIG, NOVA_CONFIG
+        MENU, KEYCONFIG1, VS, TRAINING, OMF_CONFIG, NOVA_CONFIG
     }
 
     private var quit = false
@@ -52,8 +53,9 @@ class NovaProject {
             VIRT_1 -> startKeyconfig(novaConf.p1Config)
             VIRT_2 -> startKeyconfig(novaConf.p2Config)
             VIRT_3 -> startNovaConfig()
-            VIRT_4 -> startDosBox()
-            VIRT_5 -> startOmfConfig()
+            VIRT_4 -> startVs()
+            VIRT_5 -> startTraining()
+            VIRT_6 -> startOmfConfig()
             else -> { /* no-op */ }
         }
     }
@@ -155,28 +157,52 @@ class NovaProject {
         currentConfig.print(window)
     }
 
-    private fun startDosBox() {
+    private fun startVs() {
         omfConfig?.let {
             window.clearText()
-            window.showText("=======  DOSBox Running  =======")
-            currentState = State.LAUNCH
-            writeOmfConfig()
-            dosboxConf.writeConfFiles(novaConf)
-            val dosboxConfPath = dosboxConf.getConfPath()
-            val separatorPosition = novaConf.dosboxPath.lastIndexOf('\\')
-            val exe = novaConf.dosboxPath.substring(separatorPosition + 1)
-            val args = listOf(
-                exe,
-                "-noconsole",
-                "-conf \"$dosboxConfPath\"",
-                "-c \"mount c ${novaConf.omfPath}\"",
-                "-c \"c:\"",
-                "-c \"file0001 two_player\"",
-                "-c \"exit\""
-            )
-            val command = args.joinToString(" ")
-            window.executeCommand(executable = novaConf.dosboxPath, command = command)
+            window.showText("=======     VS Mode     =======")
+            currentState = State.VS
+            startDosBox()
         }
+    }
+
+    private fun startTraining() {
+        omfConfig?.let {
+            window.clearText()
+            window.showText("=======  Training Mode  =======")
+            window.showText("F1 - Reset Left Side")
+            window.showText("F2 - Reset Center")
+            window.showText("F3 - Reset Right Side")
+            currentState = State.TRAINING
+            window.enableTraining()
+            startDosBox(saveReplays = false)
+        }
+    }
+
+    private fun startDosBox(replayFile: Path? = null, saveReplays: Boolean = false) {
+        writeOmfConfig()
+        dosboxConf.writeConfFiles(novaConf)
+        val dosboxConfPath = dosboxConf.getConfPath()
+        val separatorPosition = novaConf.dosboxPath.lastIndexOf('\\')
+        val exe = novaConf.dosboxPath.substring(separatorPosition + 1)
+        val omfParams = if(replayFile != null) {
+            "play $replayFile"
+        } else if(saveReplays) {
+            "two_player rec save_rec"
+        } else {
+            "two_player"
+        }
+        val args = listOf(
+            exe,
+            "-noconsole",
+            "-conf \"$dosboxConfPath\"",
+            "-c \"mount c ${novaConf.omfPath}\"",
+            "-c \"c:\"",
+            "-c \"file0001 $omfParams\"",
+            "-c \"exit\""
+        )
+        val command = args.joinToString(" ")
+        window.executeCommand(executable = novaConf.dosboxPath, command = command)
     }
 
     fun dosBoxFinished() {
@@ -269,6 +295,7 @@ class NovaProject {
     }
 
     private fun onEnd() {
+        window.destroy()
         novaConf.save()
     }
 
@@ -278,8 +305,9 @@ class NovaProject {
         window.showText("1. Set Player 1 Keys")
         window.showText("2. Set Player 2 Keys")
         window.showText("3. Nova Project Settings")
-        window.showText("4. Launch DosBox")
-        window.showText("5. Change OMF Settings")
+        window.showText("4. Launch VS")
+        window.showText("5. Launch Training")
+        window.showText("6. Change OMF Settings")
         window.showText("")
         getErrors().forEach {
             window.showText(it)
@@ -296,6 +324,8 @@ interface NovaWindow {
     fun showFileChooser(start: String, prompt: String): String
     fun showFolderChooser(start: String, prompt: String): String
     fun setJoystickEnabled(joyEnabled: Boolean)
+    fun destroy()
+    fun enableTraining()
 }
 
 enum class ControlType {

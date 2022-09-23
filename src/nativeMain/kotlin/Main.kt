@@ -17,6 +17,7 @@ actual fun getNativeWindow(): NovaWindow? {
 
 var processInfo: CPointer<PROCESS_INFORMATION>? = null
 val processExitCode = MemScope().alloc<DWORDVar>()
+var trainingMode = false
 
 class KissContainer: NovaWindow {
     private var renderer: CPointer<SDL_Renderer>? = null
@@ -24,20 +25,35 @@ class KissContainer: NovaWindow {
     private val window = MemScope().alloc<kiss_window>().ptr
     private val text = MemScope().alloc<kiss_textbox>().ptr
     private val winobj = MemScope().alloc<kiss_array>().ptr
-    private val joysticks = mutableMapOf<Int, CPointer<SDL_Joystick>>()
+    private var joyEnabled = false
+    private val joystickDevices = mutableMapOf<Int, CPointer<SDL_Joystick>>()
+    private val joystickIdToDevice = mutableMapOf<Int, Int>()
+    data class WindowContainer(var dosboxWindow: CPointer<SDL_Window>? = null, var dosboxRenderer: CPointer<SDL_Renderer>? = null)
+    private val containerRef = StableRef.create(WindowContainer())
+    //private var dosboxWindow: SDL_Window? = null
+    private var dosboxMessage: CPointer<SDL_Texture>? = null
+    private var dosboxCopyBuffer: CPointer<SDL_Surface>? = null
+    private var dosboxCopyTex: CPointer<SDL_Texture>? = null
+    private var dosboxRect: SDL_Rect = MemScope().alloc()
 
-    val winKeyHook = staticCFunction { nCode: Int, wParam: WPARAM, lParam: LPARAM ->
+    private val winKeyHook = staticCFunction { nCode: Int, wParam: WPARAM, lParam: LPARAM ->
         if (wParam.toInt() == WM_KEYDOWN && nCode == HC_ACTION) {
             handleWinKey(lParam)
         }
         return@staticCFunction CallNextHookEx(null, nCode, wParam, lParam)
     }
 
+    private var trainingHook: HHOOK? = null
     fun init(): Boolean {
-        SetWindowsHookEx?.invoke(WH_KEYBOARD_LL, winKeyHook, null, 0u)
-
         renderer = kiss_init("Nova Project".cstr, objects, 320, 240)
+
+        trainingHook = SetWindowsHookEx?.invoke(WH_KEYBOARD_LL, winKeyHook, null, 0u)
+
         return renderer != null
+    }
+
+    override fun destroy() {
+        UnhookWindowsHookEx(trainingHook)
     }
 
     fun buildUi() {
@@ -49,6 +65,26 @@ class KissContainer: NovaWindow {
         window.pointed.visible = 1
     }
 
+    fun buildDosboxUi(dosboxWindow: CPointer<SDL_Window>?,dosboxRenderer: CPointer<SDL_Renderer>) {
+        val font = TTF_OpenFont("kiss_font.ttf", 24)
+        val fontColor: SDL_Color = MemScope().alloc()
+        fontColor.r = 255u
+        fontColor.g = 255u
+        fontColor.b = 255u
+        val helloWorld = TTF_RenderText_Solid(font, "Hello World", fontColor.readValue())
+        dosboxMessage = SDL_CreateTextureFromSurface(dosboxRenderer, helloWorld)
+        dosboxRect.w = helloWorld?.pointed?.w?:0
+        dosboxRect.h = helloWorld?.pointed?.h?:0
+        SDL_FreeSurface(helloWorld)
+        dosboxRect.x = 0
+        dosboxRect.y = 0
+        val width = MemScope().alloc<IntVar>()
+        val height = MemScope().alloc<IntVar>()
+        SDL_GL_GetDrawableSize(dosboxWindow, width.ptr, height.ptr)
+        dosboxCopyBuffer = SDL_CreateRGBSurface(0, width.value, height.value, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000)
+        dosboxCopyTex = SDL_CreateTextureFromSurface(dosboxRenderer, dosboxCopyBuffer)
+    }
+
     override fun render() {
         SDL_RenderClear(renderer)
 
@@ -56,6 +92,24 @@ class KissContainer: NovaWindow {
         kiss_textbox_draw(text, renderer)
 
         SDL_RenderPresent(renderer)
+
+        val container = containerRef.get()
+        container.dosboxRenderer?.let {
+            if(dosboxMessage == null) {
+                buildDosboxUi(container.dosboxWindow, it)
+            }
+            dosboxCopyBuffer?.pointed?.let { buffer ->
+                SDL_RenderReadPixels(it, null,
+                    SDL_GetWindowPixelFormat(container.dosboxWindow), buffer.pixels, buffer.pitch)
+                SDL_UpdateTexture(dosboxCopyTex, null, buffer.pixels, buffer.pitch)
+            }
+            //SDL_RenderClear(it)
+
+            SDL_RenderCopy(it, dosboxCopyTex, null, null)
+            SDL_RenderCopy(it, dosboxMessage, null, dosboxRect.ptr)
+
+            SDL_RenderPresent(it)
+        }
     }
 
     val event = MemScope().allocArray<SDL_Event>(1)
@@ -78,7 +132,7 @@ class KissContainer: NovaWindow {
                         }
                     }
                     SDL_JOYBUTTONDOWN -> {
-                        val controller = event[0].jbutton.which
+                        val controller = getActualControllerId(event[0].jbutton.which)
                         val button = event[0].jbutton.button
                         val input = ButtonMap(type = ControlType.BUTTON, controlId = controller, axisId = button.toInt(), name = "Joy $controller Button $button")
                         project.handleInput(input)
@@ -87,7 +141,7 @@ class KissContainer: NovaWindow {
                         val value = event[0].jaxis.value
                         val dir = if(value < -3200) 0 else if(value > 3200) 1 else 2
                         if(dir < 2) {
-                            val controller = event[0].jaxis.which
+                            val controller = getActualControllerId(event[0].jaxis.which)
                             val axis = event[0].jaxis.axis
                             val input = ButtonMap(
                                 type = ControlType.AXIS,
@@ -102,7 +156,7 @@ class KissContainer: NovaWindow {
                     SDL_JOYHATMOTION -> {
                         val dir = event[0].jhat.value.toInt()
                         if(dir != 0) {
-                            val controller = event[0].jhat.which
+                            val controller = getActualControllerId(event[0].jhat.which)
                             val hatId = event[0].jhat.hat
                             val input = ButtonMap(
                                 type = ControlType.HAT,
@@ -115,16 +169,26 @@ class KissContainer: NovaWindow {
                         }
                     }
                     SDL_JOYDEVICEADDED -> {
-                        val id = event[0].jdevice.which
-                        SDL_JoystickOpen(id)?.let {
-                            joysticks[id] = it
+                        if(joyEnabled) {
+                            println("Adding joystick ${event[0].jdevice.which}")
+                            val id = event[0].jdevice.which
+                            SDL_JoystickOpen(id)?.let {
+                                joystickDevices[id] = it
+                                joystickIdToDevice[SDL_JoystickGetDeviceInstanceID(id)] = id
+                            }
                         }
                     }
                     SDL_JOYDEVICEREMOVED -> {
-                        val id = event[0].jdevice.which
-                        joysticks[id]?.let {
-                            if(SDL_JoystickGetAttached(it) != 0u) {
-                                SDL_JoystickClose(it)
+                        if(joyEnabled) {
+                            println("Removing joystick ${event[0].jdevice.which}")
+                            val instanceId = event[0].jdevice.which
+                            val deviceId = joystickIdToDevice[instanceId]?: continue
+                            joystickDevices[deviceId]?.let {
+                                if (SDL_JoystickGetAttached(it) != 0u) {
+                                    SDL_JoystickClose(it)
+                                }
+                                joystickDevices.remove(deviceId)
+                                joystickIdToDevice.remove(instanceId)
                             }
                         }
                     }
@@ -137,14 +201,29 @@ class KissContainer: NovaWindow {
                     CloseHandle(it.hThread)
                     processInfo = null
                     entryPointer = 0L
+                    trainingMode = false
                     project.dosBoxFinished()
-                } else {
-                    if(entryPointer == 0L) {
-                        entryPointer = getBaseAddress(it.hProcess)
-                        if(entryPointer != 0L) {
-                            println("Entry pointer at $entryPointer")
-                        }
-                    }
+                    containerRef.get().dosboxWindow = null
+                    containerRef.get().dosboxRenderer = null
+                } else if(entryPointer == 0L) {
+                    entryPointer = getBaseAddress(it.hProcess)
+                    if (entryPointer != 0L) {
+                        println("Entry pointer at $entryPointer")
+                    } else {}
+                } else if(null == containerRef.get().dosboxWindow) {
+//                    EnumThreadWindows(it.dwThreadId, staticCFunction{hwnd, param ->
+//                        //val threadId = GetWindowThreadProcessId(hwnd, null)
+//                        if(hwnd != null) {
+//                            val containerPtr: COpaquePointer? = interpretCPointer(nativeNullPtr + param)
+//                            val myContainer = containerPtr?.asStableRef<WindowContainer>()
+//                            myContainer?.get()?.apply {
+//                                dosboxWindow = SDL_CreateWindowFrom(hwnd)
+//                                dosboxRenderer = SDL_CreateRenderer(dosboxWindow, -1, 0)
+//                            }
+//                            println("Woooo")
+//                        }
+//                        return@staticCFunction 0
+//                    }, containerRef.asCPointer().toLong())
                 }
             }
         }
@@ -165,6 +244,12 @@ class KissContainer: NovaWindow {
 
     override fun executeCommand(executable: String, command: String) {
         processInfo = executeCommandNative(executable, command)
+        //dosboxWindow = SDL_CreateWindowFrom(hwnd)?.pointed
+        //processInfo?.pointed?.hProcess
+    }
+
+    override fun enableTraining() {
+        trainingMode = true
     }
 
     override fun showFolderChooser(start: String, prompt: String): String {
@@ -190,27 +275,28 @@ class KissContainer: NovaWindow {
     }
 
     override fun setJoystickEnabled(joyEnabled: Boolean) {
+        this.joyEnabled = joyEnabled
         if(joyEnabled) {
-            SDL_JoystickEventState(SDL_ENABLE)
             val joys = SDL_NumJoysticks()
             (0 until joys).forEach { id ->
-                if(joysticks.containsKey(id)) {
-                    if(SDL_JoystickGetAttached(joysticks[id]!!) != 0u) {
-                        return@forEach
-                    }
-                }
                 SDL_JoystickOpen(id)?.let {
-                    joysticks[id] = it
+                    joystickDevices[id] = it
+                    joystickIdToDevice[SDL_JoystickGetDeviceInstanceID(id)] = id
                 }
             }
         } else {
-            SDL_JoystickEventState(SDL_IGNORE)
-            joysticks.forEach { (_, joy) ->
+            joystickDevices.forEach { (_, joy) ->
                 if (SDL_JoystickGetAttached(joy) != 0u) {
                     SDL_JoystickClose(joy)
                 }
             }
+            joystickIdToDevice.clear()
+            joystickDevices.clear()
         }
+    }
+
+    private fun getActualControllerId(controllerIndex: Int): Int {
+        return joystickIdToDevice.keys.indexOf(controllerIndex)
     }
 }
 
@@ -223,63 +309,37 @@ fun initSDL(container: KissContainer): Boolean {
         println("SDL could not initialize! SDL_Error: ${SDL_GetError()}")
         success = false
     }
+    SDL_JoystickEventState(SDL_ENABLE)
     return success
 }
 
 var entryPointer = 0L
+val bytePointer = MemScope().alloc<UCHAR>(0u)
 val shortPointer = MemScope().alloc<UWORD>(0u)
 val intPointer = MemScope().alloc<ULONG>(0u)
 
 fun handleWinKey(keyPtr: Long) {
+    if(!trainingMode) return
     processInfo?.pointed?.let { process ->
         GetExitCodeProcess(process.hProcess, processExitCode.ptr)
         if (processExitCode.value == STILL_ACTIVE) {
             keyPtr.toCPointer<tagKBDLLHOOKSTRUCT>()?.let { keyHook ->
                 val key = keyHook.pointed
-                when (key.vkCode) {
-                    0x70u -> { //F1
-                        var maxHp = readMemoryShort(p1MaxHP)
-                        shortPointer.value = maxHp
-                        writeMemoryValue(p1HP, shortPointer)
-                        maxHp = readMemoryShort(p2MaxHP)
-                        shortPointer.value = maxHp
-                        writeMemoryValue(p2HP, shortPointer)
-                        intPointer.value = groundYPosition
-                        writeMemoryValue(p1posY, intPointer)
-                        writeMemoryValue(p2posY, intPointer)
-                        intPointer.value = p1StartXPosition
-                        writeMemoryValue(p1posX, intPointer)
-                        intPointer.value = p2StartXPosition
-                        writeMemoryValue(p2posX, intPointer)
-                        intPointer.value = 0u
-                        writeMemoryValue(p1Stun, intPointer)
-                        writeMemoryValue(p2Stun, intPointer)
-                    }
-                    0x74u -> { //F5
-                        //readMemoryValue(p1ScorePointer, p1ScoreValue.ptr, 4u)
-                        //readMemoryValue(p1posX, p1PosXValue.ptr, 4u)
-                        //readMemoryValue(p1posY, p1PosYValue.ptr, 4u)
-                        //readMemoryValue(p2posX, p2PosXValue.ptr, 4u)
-                        //readMemoryValue(p2posY, p2PosYValue.ptr, 4u)
-                        //readMemoryValue(p1Stun, p1StunValue.ptr, 4u)
-                        //readMemoryValue(p2Stun, p2StunValue.ptr, 4u)
-                        //println("Success! ${p1ScoreValue.value} ${p2PosYValue.value} ${p1PosXValue.value} ${p2PosXValue.value}")
-                    }
-
-                    else -> {}
+                trainingKeyMapping[key.vkCode.toInt()]?.let {
+                    getTrainingModeInput(it)
                 }
             }
         }
     }
 }
 
-fun readMemoryShort(offset: Long): UShort {
-    readMemoryValue(offset, shortPointer.ptr, 2u)
+actual fun readMemoryShort(address: Long): UShort {
+    readMemoryValue(address, shortPointer.ptr, 2u)
     return shortPointer.value
 }
 
-fun readMemoryInt(offset: Long): UInt {
-    readMemoryValue(offset, intPointer.ptr, 4u)
+actual fun readMemoryInt(address: Long): UInt {
+    readMemoryValue(address, intPointer.ptr, 4u)
     return intPointer.value
 }
 fun readMemoryValue(offset: Long, output: CPointer<out CPointed>, outputSize: ULong) {
@@ -291,12 +351,19 @@ fun readMemoryValue(offset: Long, output: CPointer<out CPointed>, outputSize: UL
     }
 }
 
-fun writeMemoryValue(offset: Long, input: UShortVarOf<UShort>) {
-    writeMemoryValue(offset, input.ptr, 2u)
+actual fun writeMemoryByte(address: Long, value: UByte) {
+    bytePointer.value = value
+    writeMemoryValue(address, bytePointer.ptr, 1u)
 }
 
-fun writeMemoryValue(offset: Long, input: UIntVarOf<UInt>) {
-    writeMemoryValue(offset, input.ptr, 4u)
+actual fun writeMemoryShort(address: Long, value: UShort) {
+    shortPointer.value = value
+    writeMemoryValue(address, shortPointer.ptr, 2u)
+}
+
+actual fun writeMemoryInt(address: Long, value: UInt) {
+    intPointer.value = value
+    writeMemoryValue(address, intPointer.ptr, 4u)
 }
 fun writeMemoryValue(offset: Long, input: CPointer<out CPointed>, inputSize: ULong) {
     if(entryPointer == 0L) return
@@ -389,6 +456,12 @@ val dosKeyMapping = mapOf(
     SDL_SCANCODE_8 to DOS_8,
     SDL_SCANCODE_9 to DOS_9,
     SDL_SCANCODE_0 to DOS_0,
+)
+
+val trainingKeyMapping = mapOf(
+    VK_F1 to VIRT_F1,
+    VK_F2 to VIRT_F2,
+    VK_F3 to VIRT_F3
 )
 
 val virtKeyMapping = mapOf(
