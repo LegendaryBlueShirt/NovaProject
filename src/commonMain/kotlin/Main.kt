@@ -1,6 +1,7 @@
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
+import okio.buffer
 import okio.use
 
 fun main() {
@@ -14,7 +15,7 @@ expect fun getFileSystem(): FileSystem
 
 class NovaProject {
     enum class State {
-        MENU, KEYCONFIG1, VS, TRAINING, OMF_CONFIG, NOVA_CONFIG
+        MENU, KEYCONFIG1, GAME, TRAINING, OTHER_MENU, OMF_CONFIG, NOVA_CONFIG
     }
 
     private var quit = false
@@ -42,8 +43,15 @@ class NovaProject {
         when(currentState) {
             State.MENU -> menuHandleScancode(input.scancode)
             State.KEYCONFIG1 -> keyconfigHandleInput(input)
-            State.OMF_CONFIG -> omfConfigHandleScancode(input.scancode)
-            State.NOVA_CONFIG -> novaConfigHandleScancode(input.scancode)
+            State.OMF_CONFIG -> {
+                val returnToMain = omfConfig?.handleScancode(window, input.scancode)?:true
+                if(returnToMain) startMainMenu()
+            }
+            State.NOVA_CONFIG -> {
+                val returnToMain = novaConf.handleScancode(window, input.scancode)
+                if(returnToMain) startMainMenu()
+            }
+            State.OTHER_MENU -> otherMenuHandleInputScancode(input.scancode)
             else -> { /* No-op */ }
         }
     }
@@ -54,48 +62,9 @@ class NovaProject {
             VIRT_2 -> startKeyconfig(novaConf.p2Config)
             VIRT_3 -> startNovaConfig()
             VIRT_4 -> startVs()
-            VIRT_5 -> startTraining()
+            VIRT_5 -> startOtherMenu()
             VIRT_6 -> startOmfConfig()
             else -> { /* no-op */ }
-        }
-    }
-
-    private fun novaConfigHandleScancode(scancode: Int) {
-        when(scancode) {
-            VIRT_1 -> {
-                novaConf.dosboxPath = window.showFileChooser(novaConf.dosboxPath.ifEmpty { ".\\DOSBox.exe" }, "Select DOSBox.exe")
-            }
-            VIRT_2 -> {
-                novaConf.omfPath = window.showFolderChooser(novaConf.omfPath.ifEmpty { "." }, "Select OMF2097 Location")
-                loadOmfConfig()
-            }
-            VIRT_3 -> {
-                novaConf.joyEnabled = !novaConf.joyEnabled
-                window.setJoystickEnabled(novaConf.joyEnabled)
-            }
-            VIRT_4 -> {
-                startMainMenu()
-                return
-            }
-        }
-        novaConf.printNovaConfigOptions(window)
-    }
-
-    private fun omfConfigHandleScancode(scancode: Int) {
-        omfConfig?.let { omfConfig ->
-            when (scancode) {
-                VIRT_1 -> omfConfig.hyperMode = !omfConfig.hyperMode
-                VIRT_2 -> omfConfig.rehitMode = !omfConfig.rehitMode
-                VIRT_3 -> omfConfig.hazards = !omfConfig.hazards
-                VIRT_4 -> omfConfig.speed = (omfConfig.speed + 1) % 11
-                VIRT_5 -> omfConfig.p1power = (omfConfig.p1power + 1)
-                VIRT_6 -> omfConfig.p2power = (omfConfig.p2power + 1)
-                VIRT_7 -> {
-                    startMainMenu()
-                    return
-                }
-            }
-            omfConfig.printGameOptions(window)
         }
     }
 
@@ -157,12 +126,45 @@ class NovaProject {
         currentConfig.print(window)
     }
 
+    private fun startOtherMenu() {
+        omfConfig?.let {
+            window.clearText()
+            window.showText("=======   Launch Modes   =======")
+            window.showText("1. Training")
+            window.showText("2. Normal")
+            window.showText("3. Back")
+            currentState = State.OTHER_MENU
+        }
+    }
+
+    private fun otherMenuHandleInputScancode(scancode: Int) {
+        when(scancode) {
+            VIRT_1 -> startTraining()
+            VIRT_2 -> startNormal()
+            VIRT_3 -> {
+                startMainMenu()
+                return
+            }
+        }
+    }
+
     private fun startVs() {
         omfConfig?.let {
             window.clearText()
             window.showText("=======     VS Mode     =======")
-            currentState = State.VS
-            startDosBox()
+            currentState = State.GAME
+            writeOmfConfig(false)
+            startDosBox(saveReplays = novaConf.saveReplays, userconf = novaConf.userConf)
+        }
+    }
+
+    private fun startNormal() {
+        omfConfig?.let {
+            window.clearText()
+            window.showText("=======   OMF 2097   =======")
+            currentState = State.GAME
+            writeOmfConfig(true)
+            startDosBox(mode = "advanced", saveReplays = novaConf.saveReplays, userconf = novaConf.userConf)
         }
     }
 
@@ -175,12 +177,12 @@ class NovaProject {
             window.showText("F3 - Reset Right Side")
             currentState = State.TRAINING
             window.enableTraining()
-            startDosBox(saveReplays = false)
+            writeOmfConfig(false)
+            startDosBox(saveReplays = false, userconf = false)
         }
     }
 
-    private fun startDosBox(replayFile: Path? = null, saveReplays: Boolean = false) {
-        writeOmfConfig()
+    private fun startDosBox(replayFile: Path? = null, userconf: Boolean = false, saveReplays: Boolean = false, mode: String = "two_player") {
         dosboxConf.writeConfFiles(novaConf)
         val dosboxConfPath = dosboxConf.getConfPath()
         val separatorPosition = novaConf.dosboxPath.lastIndexOf('\\')
@@ -188,12 +190,13 @@ class NovaProject {
         val omfParams = if(replayFile != null) {
             "play $replayFile"
         } else if(saveReplays) {
-            "two_player rec save_rec"
+            "$mode rec save_rec"
         } else {
-            "two_player"
+            mode
         }
-        val args = listOf(
+        val args = listOfNotNull(
             exe,
+            if(userconf) "-userconf" else null,
             "-noconsole",
             "-conf \"$dosboxConfPath\"",
             "-c \"mount c ${novaConf.omfPath}\"",
@@ -203,6 +206,12 @@ class NovaProject {
         )
         val command = args.joinToString(" ")
         window.executeCommand(executable = novaConf.dosboxPath, command = command)
+        //This doesn't work for DOSBox staging! AAAAAAAAAAA
+//        getFileSystem().openReadOnly("stdout.txt".toPath()).use {handle ->
+//            handle.source().buffer().use {buffer ->
+//                println(buffer.readUtf8Line())
+//            }
+//        }
     }
 
     fun dosBoxFinished() {
@@ -224,6 +233,7 @@ class NovaProject {
 
     private fun startMainMenu() {
         currentState = State.MENU
+        loadOmfConfig()
         printMenuOptions()
     }
 
@@ -232,10 +242,10 @@ class NovaProject {
         novaConf.printNovaConfigOptions(window)
     }
 
-    private fun writeOmfConfig() {
+    private fun writeOmfConfig(singlePlayer: Boolean) {
         val configPath = novaConf.omfPath.toPath().div("SETUP.CFG")
         getFileSystem().openReadWrite(configPath).use {
-            omfConfig?.buildFile(it)
+            omfConfig?.buildFile(it, singlePlayer)
         }
     }
 
@@ -306,7 +316,7 @@ class NovaProject {
         window.showText("2. Set Player 2 Keys")
         window.showText("3. Nova Project Settings")
         window.showText("4. Launch VS")
-        window.showText("5. Launch Training")
+        window.showText("5. Other Launch Modes")
         window.showText("6. Change OMF Settings")
         window.showText("")
         getErrors().forEach {
@@ -341,10 +351,10 @@ data class ButtonMap(
     val direction: Int = 0
 )
 
-fun ButtonMap.dosboxMap(): String {
+fun ButtonMap.dosboxMap(scancodeMap: Map<Int, Int>): String {
     return when(type) {
         ControlType.KEY -> {
-            "key $scancode"
+            "key ${scancodeMap[scancode]}"
         }
         ControlType.AXIS -> {
             "stick_$controlId axis $axisId $direction"

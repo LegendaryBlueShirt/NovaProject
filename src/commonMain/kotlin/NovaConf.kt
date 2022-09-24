@@ -9,6 +9,8 @@ class NovaConf(val location: Path) {
     val p2Config = getDefaultP2Config()
     var joyEnabled = true
     var saveReplays = false
+    var userConf = false
+    var stagingCompat = false
 
     init {
         val fs = getFileSystem()
@@ -33,6 +35,7 @@ class NovaConf(val location: Path) {
                 p2Config.kick = (it.readUtf8Line()?:"").toButtonMap()
                 joyEnabled = (it.readUtf8Line()?:"true").toBoolean()
                 saveReplays = (it.readUtf8Line()?:"false").toBoolean()
+                userConf = (it.readUtf8Line()?:"false").toBoolean()
             }
         }
     }
@@ -47,7 +50,8 @@ class NovaConf(val location: Path) {
                     it.writeUtf8("${binding.toNovaConf()}\n")
                 }
                 it.writeUtf8("$joyEnabled\n")
-                it.writeUtf8(saveReplays.toString())
+                it.writeUtf8("$saveReplays\n")
+                it.writeUtf8("$userConf\n")
             }
         }
     }
@@ -66,15 +70,46 @@ class NovaConf(val location: Path) {
         return false
     }
 
+    fun handleScancode(window: NovaWindow, scancode: Int): Boolean {
+        when(scancode) {
+            VIRT_1 -> {
+                dosboxPath = window.showFileChooser(dosboxPath.ifEmpty { ".\\DOSBox.exe" }, "Select DOSBox.exe")
+            }
+            VIRT_2 -> {
+                stagingCompat = !stagingCompat
+            }
+            VIRT_3 -> {
+                omfPath = window.showFolderChooser(omfPath.ifEmpty { "." }, "Select OMF2097 Location")
+            }
+            VIRT_4 -> {
+                joyEnabled = !joyEnabled
+                window.setJoystickEnabled(joyEnabled)
+            }
+            VIRT_5 -> {
+                userConf = !userConf
+            }
+            VIRT_6 -> {
+                saveReplays = !saveReplays
+            }
+            VIRT_7 -> {
+                return true
+            }
+        }
+        printNovaConfigOptions(window)
+        return false
+    }
     fun printNovaConfigOptions(window: NovaWindow) {
         window.clearText()
         window.showText("=======   Nova Options   =======")
         window.showText("1. DOSBox location")
         window.showText("- $dosboxPath")
-        window.showText("2. OMF location")
+        window.showText("2. Is DOSBox Staging? - ${if(stagingCompat) "Yes" else "No"}")
+        window.showText("3. OMF location")
         window.showText("- $omfPath")
-        window.showText("3. Joystick Support - ${if(joyEnabled) "On" else "Off"}")
-        window.showText("4. Back")
+        window.showText("4. Joystick Support - ${if(joyEnabled) "On" else "Off"}")
+        window.showText("5. Use my DOSBox Settings - ${if(userConf) "On" else "Off"}")
+        window.showText("6. Save Replays - ${if(saveReplays) "On" else "Off"}")
+        window.showText("7. Back")
     }
 
     private fun getDefaultP1Config(): ControlMapping {

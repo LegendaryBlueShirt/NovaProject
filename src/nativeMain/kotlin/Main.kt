@@ -385,7 +385,7 @@ fun getBaseAddress(handle: HANDLE?): Long {
         if(result == 0uL) {
             return 0
         } else {
-            if((mem.RegionSize >= 0x1001000uL) && (mem.AllocationProtect == 4u)) {
+            if((mem.RegionSize == 0x1001000uL) && (mem.AllocationProtect == 4u)) {
                 break
             }
             pointer = interpretCPointer(nativeNullPtr + pointer.toLong() + mem.RegionSize.toLong())
@@ -398,6 +398,7 @@ fun executeCommandNative(executable: String, command: String): CPointer<PROCESS_
     val pi = MemScope().alloc<PROCESS_INFORMATION>().ptr
     memScoped {
         val si = alloc<STARTUPINFO>().ptr
+
         val result = CreateProcess?.invoke(
             executable.wcstr.ptr,
             command.wcstr.ptr,
@@ -568,3 +569,11 @@ val virtKeyMapping = mapOf(
     SDL_SCANCODE_SCROLLLOCK to VIRT_SCRLCK,
     SDL_SCANCODE_PAUSE to VIRT_PAUSE,
 )
+
+actual fun getDosboxScancodeMap(): Map<Int, Int> {
+    return virtKeyMapping.entries.associateBy({ it.value }) { it.value }
+}
+
+actual fun getDosboxStagingScancodeMap(): Map<Int, Int> {
+    return virtKeyMapping.entries.associateBy({ it.value }) { it.key.toInt() }
+}

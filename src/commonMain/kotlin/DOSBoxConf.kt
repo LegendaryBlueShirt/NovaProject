@@ -3,12 +3,15 @@ import okio.Path.Companion.toPath
 import okio.buffer
 import okio.use
 
+expect fun getDosboxScancodeMap(): Map<Int, Int>
+expect fun getDosboxStagingScancodeMap(): Map<Int, Int>
 class DOSBoxConf {
     private val confPath = "omf.conf".toPath()
     private val mapperPath = "omfMap.map".toPath()
 
     fun writeConfFiles(novaConf: NovaConf) {
-        writeDosboxMapperFile(novaConf.p1Config, novaConf.p2Config)
+        val mapping = if(novaConf.stagingCompat) getDosboxStagingScancodeMap() else getDosboxScancodeMap()
+        writeDosboxMapperFile(mapping, novaConf.p1Config, novaConf.p2Config)
         writeDosboxConfFile(novaConf)
     }
 
@@ -16,32 +19,32 @@ class DOSBoxConf {
         return getFileSystem().canonicalize(confPath)
     }
 
-    private fun writeDosboxMapperFile(p1Config: ControlMapping, p2Config: ControlMapping) {
+    private fun writeDosboxMapperFile(mapping: Map<Int, Int>, p1Config: ControlMapping, p2Config: ControlMapping) {
         val fs = getFileSystem()
         fs.openReadWrite(mapperPath).use { handle ->
             handle.sink().buffer().use {
-                it.writeUtf8("key_esc \"key 27\"\n")
-                it.writeUtf8("key_1 \"key 49\"\n")
-                it.writeUtf8("key_2 \"key 50\"\n")
-                it.writeUtf8("key_3 \"key 51\"\n")
-                it.writeUtf8("key_4 \"key 52\"\n")
-                it.writeUtf8("key_5 \"key 53\"\n")
-                it.writeUtf8("key_6 \"key 54\"\n")
+                it.writeUtf8("key_esc \"key ${mapping[27]}\"\n")
+                it.writeUtf8("key_1 \"key ${mapping[49]}\"\n")
+                it.writeUtf8("key_2 \"key ${mapping[50]}\"\n")
+                it.writeUtf8("key_3 \"key ${mapping[51]}\"\n")
+                it.writeUtf8("key_4 \"key ${mapping[52]}\"\n")
+                it.writeUtf8("key_5 \"key ${mapping[53]}\"\n")
+                it.writeUtf8("key_6 \"key ${mapping[54]}\"\n")
                 p1Config.apply {
-                    it.writeUtf8("key_up \"${up.dosboxMap()}\"\n")
-                    it.writeUtf8("key_down \"${down.dosboxMap()}\"\n")
-                    it.writeUtf8("key_left \"${left.dosboxMap()}\"\n")
-                    it.writeUtf8("key_right \"${right.dosboxMap()}\"\n")
-                    it.writeUtf8("key_enter \"${punch.dosboxMap()}\"\n")
-                    it.writeUtf8("key_rshift \"${kick.dosboxMap()}\"\n")
+                    it.writeUtf8("key_up \"${up.dosboxMap(mapping)}\"\n")
+                    it.writeUtf8("key_down \"${down.dosboxMap(mapping)}\"\n")
+                    it.writeUtf8("key_left \"${left.dosboxMap(mapping)}\"\n")
+                    it.writeUtf8("key_right \"${right.dosboxMap(mapping)}\"\n")
+                    it.writeUtf8("key_enter \"${punch.dosboxMap(mapping)}\"\n")
+                    it.writeUtf8("key_rshift \"${kick.dosboxMap(mapping)}\"\n")
                 }
                 p2Config.apply {
-                    it.writeUtf8("key_w \"${up.dosboxMap()}\"\n")
-                    it.writeUtf8("key_x \"${down.dosboxMap()}\"\n")
-                    it.writeUtf8("key_a \"${left.dosboxMap()}\"\n")
-                    it.writeUtf8("key_d \"${right.dosboxMap()}\"\n")
-                    it.writeUtf8("key_tab \"${punch.dosboxMap()}\"\n")
-                    it.writeUtf8("key_lctrl \"${kick.dosboxMap()}\"\n")
+                    it.writeUtf8("key_w \"${up.dosboxMap(mapping)}\"\n")
+                    it.writeUtf8("key_x \"${down.dosboxMap(mapping)}\"\n")
+                    it.writeUtf8("key_a \"${left.dosboxMap(mapping)}\"\n")
+                    it.writeUtf8("key_d \"${right.dosboxMap(mapping)}\"\n")
+                    it.writeUtf8("key_tab \"${punch.dosboxMap(mapping)}\"\n")
+                    it.writeUtf8("key_lctrl \"${kick.dosboxMap(mapping)}\"\n")
                 }
             }
         }
@@ -54,6 +57,9 @@ class DOSBoxConf {
             handle.sink().buffer().use {
                 it.writeUtf8(
                     "[sdl]\nwaitonerror=false\nmapperfile=${absoluteMapperPath}\npriority=normal,normal\n"
+                )
+                it.writeUtf8(
+                    "[dosbox]\nmachine=svga_s3\nvmemsize=8\nmemsize=16\n"
                 )
                 it.writeUtf8(
                     "[cpu]\ncycles=fixed 14500\n"
