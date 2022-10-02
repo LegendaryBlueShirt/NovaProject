@@ -1,3 +1,5 @@
+package com.justnopoint.nova
+
 import okio.Path
 import okio.buffer
 import okio.use
@@ -42,7 +44,7 @@ class NovaConf(val location: Path) {
 
     fun save() {
         val fs = getFileSystem()
-        fs.openReadWrite(location).use { handle ->
+        fs.openReadWrite(location, mustCreate = false, mustExist = false).use { handle ->
             handle.sink().buffer().use {
                 it.writeUtf8("$dosboxPath\n")
                 it.writeUtf8("$omfPath\n")
@@ -68,48 +70,6 @@ class NovaConf(val location: Path) {
             return true
         }
         return false
-    }
-
-    fun handleScancode(window: NovaWindow, scancode: Int): Boolean {
-        when(scancode) {
-            VIRT_1 -> {
-                dosboxPath = window.showFileChooser(dosboxPath.ifEmpty { ".\\DOSBox.exe" }, "Select DOSBox.exe")
-            }
-            VIRT_2 -> {
-                stagingCompat = !stagingCompat
-            }
-            VIRT_3 -> {
-                omfPath = window.showFolderChooser(omfPath.ifEmpty { "." }, "Select OMF2097 Location")
-            }
-            VIRT_4 -> {
-                joyEnabled = !joyEnabled
-                window.setJoystickEnabled(joyEnabled)
-            }
-            VIRT_5 -> {
-                userConf = !userConf
-            }
-            VIRT_6 -> {
-                saveReplays = !saveReplays
-            }
-            VIRT_7 -> {
-                return true
-            }
-        }
-        printNovaConfigOptions(window)
-        return false
-    }
-    fun printNovaConfigOptions(window: NovaWindow) {
-        window.clearText()
-        window.showText("=======   Nova Options   =======")
-        window.showText("1. DOSBox location")
-        window.showText("- $dosboxPath")
-        window.showText("2. Is DOSBox Staging? - ${if(stagingCompat) "Yes" else "No"}")
-        window.showText("3. OMF location")
-        window.showText("- $omfPath")
-        window.showText("4. Joystick Support - ${if(joyEnabled) "On" else "Off"}")
-        window.showText("5. Use my DOSBox Settings - ${if(userConf) "On" else "Off"}")
-        window.showText("6. Save Replays - ${if(saveReplays) "On" else "Off"}")
-        window.showText("7. Back")
     }
 
     private fun getDefaultP1Config(): ControlMapping {

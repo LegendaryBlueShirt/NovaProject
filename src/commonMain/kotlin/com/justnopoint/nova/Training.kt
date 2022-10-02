@@ -1,3 +1,5 @@
+package com.justnopoint.nova
+
 fun getTrainingModeInput(code: Int) {
     when(code) {
         VIRT_F1 -> resetLeftSide()

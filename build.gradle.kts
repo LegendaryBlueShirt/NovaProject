@@ -1,5 +1,5 @@
 plugins {
-    kotlin("multiplatform") version "1.7.10"
+    kotlin("multiplatform") version "1.7.20"
 }
 
 group = "org.example"
@@ -24,11 +24,11 @@ kotlin {
     nativeTarget.apply {
         binaries {
             executable("nova") {
-                entryPoint = "main"
+                entryPoint = "com.justnopoint.nova.main"
                 linkerOpts = mutableListOf("-L${nativelibs}\\lib",
                     "-L${nativelibs}\\bin", "-L${project.projectDir}\\native\\lib",
                     "-lmingw32", "-lSDL2main", "-lSDL2", "-lSDL2_image",
-                    "-lSDL2_ttf", "-lkiss_sdl",
+                    "-lSDL2_ttf",
                     "-mwindows")
             }
         }
@@ -39,13 +39,6 @@ kotlin {
                 }
                 extraOpts = mutableListOf("-libraryPath", "${nativelibs}\\lib",
                     "-libraryPath", "${nativelibs}\\bin")
-            }
-            val kiss_sdl by creating {
-                includeDirs {
-                    allHeaders("${nativelibs}\\include", "${project.projectDir}\\native\\include")
-                }
-                extraOpts = mutableListOf("-libraryPath", "${nativelibs}\\lib",
-                    "-libraryPath", "${project.projectDir}\\native\\lib")
             }
             val tinyfiledialogs by creating {
                 includeDirs {

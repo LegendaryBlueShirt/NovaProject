@@ -1,4 +1,4 @@
-
+package com.justnopoint.nova
 // Game var locations
 val p1ScorePointer = 0x1FA250L
 val p1HP = 0x15CE50L

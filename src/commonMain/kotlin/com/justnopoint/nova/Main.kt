@@ -1,7 +1,9 @@
+package com.justnopoint.nova
+
+import com.justnopoint.nova.menu.MainMenu
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
-import okio.buffer
 import okio.use
 
 fun main() {
@@ -14,23 +16,23 @@ expect fun getNativeWindow(): NovaWindow?
 expect fun getFileSystem(): FileSystem
 
 class NovaProject {
-    enum class State {
-        MENU, KEYCONFIG1, GAME, TRAINING, OTHER_MENU, OMF_CONFIG, NOVA_CONFIG
-    }
-
     private var quit = false
     private lateinit var window: NovaWindow
-    private var currentState = State.MENU
-    private var omfConfig: OMFConf? = null
-    private val novaConf = NovaConf("nova.cfg".toPath())
+    var omfConfig: OMFConf? = null
+    val novaConf = NovaConf("nova.cfg".toPath())
     private val dosboxConf = DOSBoxConf()
-    private lateinit var currentConfig: ControlMapping
+    private val mainMenu = MainMenu(this)
+
+    //UI Vars
+    private var frameCount = 0
+    private var bgTex = 0
 
     fun runLoop(window: NovaWindow) {
         onStart(window)
         while (!quit) {
             window.processEvents(this)
-            window.render()
+            renderFrame()
+            frameCount++
         }
         onEnd()
     }
@@ -40,142 +42,25 @@ class NovaProject {
     }
 
     fun handleInput(input: ButtonMap) {
-        when(currentState) {
-            State.MENU -> menuHandleScancode(input.scancode)
-            State.KEYCONFIG1 -> keyconfigHandleInput(input)
-            State.OMF_CONFIG -> {
-                val returnToMain = omfConfig?.handleScancode(window, input.scancode)?:true
-                if(returnToMain) startMainMenu()
-            }
-            State.NOVA_CONFIG -> {
-                val returnToMain = novaConf.handleScancode(window, input.scancode)
-                if(returnToMain) startMainMenu()
-            }
-            State.OTHER_MENU -> otherMenuHandleInputScancode(input.scancode)
-            else -> { /* No-op */ }
-        }
+        mainMenu.handleInput(input)
     }
 
-    private fun menuHandleScancode(scancode: Int) {
-        when(scancode) {
-            VIRT_1 -> startKeyconfig(novaConf.p1Config)
-            VIRT_2 -> startKeyconfig(novaConf.p2Config)
-            VIRT_3 -> startNovaConfig()
-            VIRT_4 -> startVs()
-            VIRT_5 -> startOtherMenu()
-            VIRT_6 -> startOmfConfig()
-            else -> { /* no-op */ }
-        }
-    }
-
-    private var allconfig = false
-    private var waitingForKey = false
-    private var configKey = 0
-    private fun keyconfigHandleInput(input: ButtonMap) {
-        if(waitingForKey) {
-            waitingForKey = false
-            when(configKey) {
-                VIRT_1 -> currentConfig.up = input
-                VIRT_2 -> currentConfig.down = input
-                VIRT_3 -> currentConfig.left = input
-                VIRT_4 -> currentConfig.right = input
-                VIRT_5 -> currentConfig.punch = input
-                VIRT_6 -> currentConfig.kick = input
-            }
-            if(allconfig) {
-                configKey++
-                if(configKey == VIRT_7) {
-                    allconfig = false
-                } else {
-                    waitingForKey = true
-                }
-            }
-        } else {
-            when (input.scancode) {
-                VIRT_1,VIRT_2,VIRT_3,VIRT_4,VIRT_5,VIRT_6 -> {
-                    waitingForKey = true
-                    configKey = input.scancode
-                    val map = ButtonMap(type = ControlType.KEY, scancode = 0, name = "?")
-                    when(input.scancode) {
-                        VIRT_1 -> currentConfig.up = map
-                        VIRT_2 -> currentConfig.down = map
-                        VIRT_3 -> currentConfig.left = map
-                        VIRT_4 -> currentConfig.right = map
-                        VIRT_5 -> currentConfig.punch = map
-                        VIRT_6 -> currentConfig.kick = map
-                    }
-                }
-                VIRT_7 -> {
-                    allconfig = true
-                    waitingForKey = true
-                    configKey = VIRT_1
-                    val map = ButtonMap(type = ControlType.KEY, scancode = 0, name = "?")
-                    currentConfig.up = map
-                    currentConfig.down = map
-                    currentConfig.left = map
-                    currentConfig.right = map
-                    currentConfig.punch = map
-                    currentConfig.kick = map
-                }
-                VIRT_8 -> {
-                    startMainMenu()
-                    return
-                }
-            }
-        }
-        currentConfig.print(window)
-    }
-
-    private fun startOtherMenu() {
+    fun startVs() {
         omfConfig?.let {
-            window.clearText()
-            window.showText("=======   Launch Modes   =======")
-            window.showText("1. Training")
-            window.showText("2. Normal")
-            window.showText("3. Back")
-            currentState = State.OTHER_MENU
-        }
-    }
-
-    private fun otherMenuHandleInputScancode(scancode: Int) {
-        when(scancode) {
-            VIRT_1 -> startTraining()
-            VIRT_2 -> startNormal()
-            VIRT_3 -> {
-                startMainMenu()
-                return
-            }
-        }
-    }
-
-    private fun startVs() {
-        omfConfig?.let {
-            window.clearText()
-            window.showText("=======     VS Mode     =======")
-            currentState = State.GAME
             writeOmfConfig(false)
             startDosBox(saveReplays = novaConf.saveReplays, userconf = novaConf.userConf)
         }
     }
 
-    private fun startNormal() {
+    fun startNormal() {
         omfConfig?.let {
-            window.clearText()
-            window.showText("=======   OMF 2097   =======")
-            currentState = State.GAME
             writeOmfConfig(true)
             startDosBox(mode = "advanced", saveReplays = novaConf.saveReplays, userconf = novaConf.userConf)
         }
     }
 
-    private fun startTraining() {
+    fun startTraining() {
         omfConfig?.let {
-            window.clearText()
-            window.showText("=======  Training Mode  =======")
-            window.showText("F1 - Reset Left Side")
-            window.showText("F2 - Reset Center")
-            window.showText("F3 - Reset Right Side")
-            currentState = State.TRAINING
             window.enableTraining()
             writeOmfConfig(false)
             startDosBox(saveReplays = false, userconf = false)
@@ -215,48 +100,46 @@ class NovaProject {
     }
 
     fun dosBoxFinished() {
-        startMainMenu()
-    }
-
-    private fun startKeyconfig(playerConfig: ControlMapping) {
-        currentState = State.KEYCONFIG1
-        currentConfig = playerConfig
-        currentConfig.print(window)
-    }
-
-    private fun startOmfConfig() {
-        omfConfig?.let {
-            currentState = State.OMF_CONFIG
-            it.printGameOptions(window)
-        }
-    }
-
-    private fun startMainMenu() {
-        currentState = State.MENU
-        loadOmfConfig()
-        printMenuOptions()
-    }
-
-    private fun startNovaConfig() {
-        currentState = State.NOVA_CONFIG
-        novaConf.printNovaConfigOptions(window)
+        mainMenu.reset()
     }
 
     private fun writeOmfConfig(singlePlayer: Boolean) {
         val configPath = novaConf.omfPath.toPath().div("SETUP.CFG")
-        getFileSystem().openReadWrite(configPath).use {
+        getFileSystem().openReadWrite(configPath, mustCreate = false, mustExist = false).use {
             omfConfig?.buildFile(it, singlePlayer)
         }
     }
 
     private fun onStart(window: NovaWindow) {
         this.window = window
+        val background = loadPcx("NETARENA.PCX".toPath())?: error("Couldn't load background NETARENA.PCX")
+        val font1image = loadPcx("NETFONT1.PCX".toPath())?: error("Couldn't load font NETFONT1.PCX")
+        val font2image = loadPcx("NETFONT2.PCX".toPath())?: error("Couldn't load font NETFONT2.PCX")
+        bgTex = window.loadTexture(background)
+
+        /* Manipulation to get all font colors we need */
+        background.paletteData.copyInto(font1image.paletteData)
+        background.paletteData.copyInto(font2image.paletteData)
+        MenuFonts.initialize(window, font1image, font2image)
+
         window.setJoystickEnabled(novaConf.joyEnabled)
         loadOmfConfig()
-        printMenuOptions()
     }
 
-    private fun loadOmfConfig() {
+    private fun renderFrame() {
+        window.startRender()
+
+        window.showImage(bgTex,0,0)
+        mainMenu.render(window, frameCount)
+
+        getErrors().forEachIndexed { index, error ->
+            window.showText(error, MenuFonts.bigFont_red, 20, 376 - index*18)
+        }
+
+        window.endRender()
+    }
+
+    fun loadOmfConfig() {
         val configPath = novaConf.omfPath.toPath().div("SETUP.CFG")
         val fs = getFileSystem()
         if(fs.exists(configPath)) {
@@ -309,33 +192,34 @@ class NovaProject {
         novaConf.save()
     }
 
-    private fun printMenuOptions() {
-        window.clearText()
-        window.showText("======= Choose an Option =======")
-        window.showText("1. Set Player 1 Keys")
-        window.showText("2. Set Player 2 Keys")
-        window.showText("3. Nova Project Settings")
-        window.showText("4. Launch VS")
-        window.showText("5. Other Launch Modes")
-        window.showText("6. Change OMF Settings")
-        window.showText("")
-        getErrors().forEach {
-            window.showText(it)
-        }
+    fun showFileChooser(start: String, prompt: String): String {
+        return window.showFileChooser(start, prompt)
+    }
+
+    fun showFolderChooser(start: String, prompt: String): String {
+        return window.showFolderChooser(start, prompt)
+    }
+
+    fun setJoystickEnabled(joyEnabled: Boolean) {
+        window.setJoystickEnabled(joyEnabled)
     }
 }
 
 interface NovaWindow {
     fun processEvents(project: NovaProject)
-    fun render()
-    fun showText(textLine: String)
-    fun clearText()
+    fun startRender()
+    fun endRender()
+    //fun showText(textLine: String)
+    fun showText(textLine: String, font: Int, x: Int, y: Int, reverse: Boolean = false)
     fun executeCommand(executable: String, command: String)
     fun showFileChooser(start: String, prompt: String): String
     fun showFolderChooser(start: String, prompt: String): String
     fun setJoystickEnabled(joyEnabled: Boolean)
     fun destroy()
     fun enableTraining()
+    fun loadFont(fontMapping: OmfFont, textureHandle: Int): Int
+    fun loadTexture(image: PCXImage): Int
+    fun showImage(textureHandle: Int, x: Int, y: Int)
 }
 
 enum class ControlType {
@@ -404,17 +288,3 @@ data class ControlMapping(
     var punch: ButtonMap,
     var kick: ButtonMap
 )
-
-fun ControlMapping.print(window: NovaWindow) {
-    window.clearText()
-    window.showText("======= Controller Config =======")
-    window.showText("1. UP    - ${up.name}")
-    window.showText("2. DOWN  - ${down.name}")
-    window.showText("3. LEFT  - ${left.name}")
-    window.showText("4. RIGHT - ${right.name}")
-    window.showText("5. PUNCH - ${punch.name}")
-    window.showText("6. KICK  - ${kick.name}")
-    window.showText("")
-    window.showText("7. Set All")
-    window.showText("8. Back")
-}

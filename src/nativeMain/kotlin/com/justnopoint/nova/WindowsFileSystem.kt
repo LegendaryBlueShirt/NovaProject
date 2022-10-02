@@ -1,3 +1,5 @@
+package com.justnopoint.nova
+
 import kotlinx.cinterop.*
 import okio.*
 import okio.Path.Companion.toPath

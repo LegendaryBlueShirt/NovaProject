@@ -1,5 +1,7 @@
 @file:OptIn(ExperimentalUnsignedTypes::class, ExperimentalUnsignedTypes::class)
 
+package com.justnopoint.nova
+
 import okio.FileHandle
 import okio.buffer
 import okio.use
@@ -75,48 +77,6 @@ class OMFConf(handle: FileHandle) {
             it.writeByte(music)
             it.write(unkFooter)
         }
-    }
-
-    fun handleScancode(window: NovaWindow, scancode: Int): Boolean {
-        when (scancode) {
-            VIRT_1 -> hyperMode = !hyperMode
-            VIRT_2 -> rehitMode = !rehitMode
-            VIRT_3 -> hazards = !hazards
-            VIRT_4 -> speed = (speed + 1) % 11
-            VIRT_5 -> p1power = (p1power + 1)
-            VIRT_6 -> p2power = (p2power + 1)
-            VIRT_7 -> {
-                return true
-            }
-        }
-        printGameOptions(window)
-        return false
-    }
-
-    fun printGameOptions(window: NovaWindow) {
-        val p1PowerString = "${1 / (2.25 - .25*p1power)}".take(5)
-        val p2PowerString = "${1 / (2.25 - .25*p2power)}".take(5)
-        window.clearText()
-        window.showText("=======  Game Options   =======")
-        window.showText("1. Hyper Mode   - ${if (hyperMode) "On" else "Off"}")
-        window.showText("2. Rehit Mode   - ${if (rehitMode) "On" else "Off"}")
-        window.showText("3. Hazards      - ${if (hazards) "On" else "Off"}")
-        window.showText("4. Speed        - ${speed*10}%")
-        window.showText("5. P1 Power     - ${p1PowerString}x")
-        window.showText("6. P2 Power     - ${p2PowerString}x")
-        window.showText("7. Back")
-    }
-
-    fun printAVOptions(window: NovaWindow) {
-        window.clearText()
-        window.showText("===== AudioVisual Options =====")
-        window.showText("1. Hyper Mode - ${if (hyperMode) "On" else "Off"}")
-        window.showText("2. Rehit Mode - ${if (rehitMode) "On" else "Off"}")
-        window.showText("3. Hazards    - ${if (hazards) "On" else "Off"}")
-        window.showText("4. Speed      - ${speed*10}%")
-        window.showText("5. Sound   - ${(0 until sound).joinToString(separator = "") { "*" }}")
-        window.showText("6. Music   - ${(0 until music).joinToString(separator = "") { "*" }}")
-        window.showText("7. Back")
     }
 
     var p1power: Int

@@ -1,3 +1,5 @@
+package com.justnopoint.nova
+
 import okio.Path
 import okio.Path.Companion.toPath
 import okio.buffer
@@ -21,7 +23,7 @@ class DOSBoxConf {
 
     private fun writeDosboxMapperFile(mapping: Map<Int, Int>, p1Config: ControlMapping, p2Config: ControlMapping) {
         val fs = getFileSystem()
-        fs.openReadWrite(mapperPath).use { handle ->
+        fs.openReadWrite(mapperPath, mustCreate = false, mustExist = false).use { handle ->
             handle.sink().buffer().use {
                 it.writeUtf8("key_esc \"key ${mapping[27]}\"\n")
                 it.writeUtf8("key_1 \"key ${mapping[49]}\"\n")
@@ -53,7 +55,7 @@ class DOSBoxConf {
     private fun writeDosboxConfFile(novaConf: NovaConf) {
         val fs = getFileSystem()
         val absoluteMapperPath = fs.canonicalize(mapperPath)
-        fs.openReadWrite(confPath).use { handle ->
+        fs.openReadWrite(confPath, mustCreate = false, mustExist = false).use { handle ->
             handle.sink().buffer().use {
                 it.writeUtf8(
                     "[sdl]\nwaitonerror=false\nmapperfile=${absoluteMapperPath}\npriority=normal,normal\n"

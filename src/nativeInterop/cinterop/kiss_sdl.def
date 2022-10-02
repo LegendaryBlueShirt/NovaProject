@@ -1,5 +1,0 @@
-headers = kiss_sdl.h
-
-package = kiss_SDL
-
-compilerOpts = -msse4

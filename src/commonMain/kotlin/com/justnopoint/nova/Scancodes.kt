@@ -1,4 +1,4 @@
-
+package com.justnopoint.nova
 val DOS_ESC = 0x01
 val DOS_1 = 0x02
 val DOS_2 = 0x03
