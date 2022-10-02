@@ -29,4 +29,3 @@ https://docs.google.com/spreadsheets/d/1f68twD48EQDhjrDtld5XLhuaoLSN31k3o9N7NnAG
 ## Links
 [tinyfiledialogs](http://tinyfiledialogs.sourceforge.net)
 
-[kiss_sdl](https://github.com/actsl/kiss_sdl)
