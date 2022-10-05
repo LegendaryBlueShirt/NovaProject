@@ -44,6 +44,7 @@ class KissContainer: NovaWindow {
 
 
     fun init(): Boolean {
+        IMG_Init(IMG_INIT_PNG.toInt())
         window = SDL_CreateWindow("Nova Project", SDL_WINDOWPOS_UNDEFINED.toInt(), SDL_WINDOWPOS_UNDEFINED.toInt(), 640, 400, 0)
         renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)
 
@@ -236,8 +237,7 @@ class KissContainer: NovaWindow {
     val fontSrcRect: SDL_Rect = MemScope().alloc()
     val fontDstRect: SDL_Rect = MemScope().alloc()
 
-    override fun loadTexture(image: PCXImage): Int {
-        val surface = surfaceFromPcx(image)
+    private fun surfaceToTexture(surface: CPointer<SDL_Surface>?): Int {
         val tex = SDL_CreateTextureFromSurface(renderer, surface)
         SDL_FreeSurface(surface)
         if (tex == null) {
@@ -245,6 +245,22 @@ class KissContainer: NovaWindow {
         }
         textures.add(tex)
         return textures.size - 1
+    }
+
+    override fun loadTexture(image: PCXImage): Int {
+        val surface = surfaceFromPcx(image)
+        return surfaceToTexture(surface)
+    }
+
+    override fun loadTexturePng(path: String): Int {
+        val surface = IMG_Load(path)
+        return surfaceToTexture(surface)
+    }
+
+    override fun loadTextureFromRaster(raster: UByteArray, width: Int, height: Int): Int {
+        val newSurface = SDL_CreateRGBSurface(0, width, height, 32, 0xffu, 0xff00u, 0xff0000u, 0xff000000u)
+        SDL_memcpy(newSurface?.pointed?.pixels, raster.refTo(0), raster.size.toULong())
+        return surfaceToTexture(newSurface)
     }
     override fun loadFont(fontMapping: OmfFont, textureHandle: Int): Int {
         val fontRenderer = object: OmfFontRenderer() {

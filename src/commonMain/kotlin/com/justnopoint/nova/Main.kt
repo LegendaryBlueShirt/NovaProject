@@ -26,6 +26,7 @@ class NovaProject {
     //UI Vars
     private var frameCount = 0
     private var bgTex = 0
+    private var darkener = 0
 
     fun runLoop(window: NovaWindow) {
         onStart(window)
@@ -64,6 +65,12 @@ class NovaProject {
             window.enableTraining()
             writeOmfConfig(false)
             startDosBox(saveReplays = false, userconf = false)
+        }
+    }
+
+    fun startReplay(path: Path) {
+        omfConfig?.let {
+            startDosBox(replayFile = path, userconf = novaConf.userConf)
         }
     }
 
@@ -117,6 +124,15 @@ class NovaProject {
         val font2image = loadPcx("NETFONT2.PCX".toPath())?: error("Couldn't load font NETFONT2.PCX")
         bgTex = window.loadTexture(background)
 
+        val darkenerRaster = UByteArray(320*144*4)
+        for(n in 0 until (320*144)) {
+            darkenerRaster[n*4] = 0x0u
+            darkenerRaster[n*4+1] = 0x0u
+            darkenerRaster[n*4+2] = 0x0u
+            darkenerRaster[n*4+3] = 0x80u
+        }
+        darkener = window.loadTextureFromRaster(darkenerRaster, 320, 144)
+
         /* Manipulation to get all font colors we need */
         background.paletteData.copyInto(font1image.paletteData)
         background.paletteData.copyInto(font2image.paletteData)
@@ -124,15 +140,17 @@ class NovaProject {
 
         window.setJoystickEnabled(novaConf.joyEnabled)
         loadOmfConfig()
+        novaConf.checkErrors()
     }
 
     private fun renderFrame() {
         window.startRender()
 
         window.showImage(bgTex,0,0)
+        window.showImage(darkener, 0, 0)
         mainMenu.render(window, frameCount)
 
-        getErrors().forEachIndexed { index, error ->
+        novaConf.errors.forEachIndexed { index, error ->
             window.showText(error, MenuFonts.bigFont_red, 20, 376 - index*18)
         }
 
@@ -142,49 +160,11 @@ class NovaProject {
     fun loadOmfConfig() {
         val configPath = novaConf.omfPath.toPath().div("SETUP.CFG")
         val fs = getFileSystem()
-        if(fs.exists(configPath)) {
+        if (fs.exists(configPath)) {
             fs.openReadOnly(configPath).use {
                 omfConfig = OMFConf(it)
             }
         }
-    }
-    private fun getErrors(): List<String> {
-        val errors = mutableListOf<String>()
-        val boundInputs = novaConf.getBoundInputs()
-        if(novaConf.isUsingHat()) {
-            val devices = boundInputs.filter { it.type != ControlType.KEY }.map { it.controlId }.distinct()
-            if(devices.size > 1) {
-                errors.add("Hat not supported with two joysticks")
-            }
-        }
-        if(!novaConf.joyEnabled) {
-            val joyInputs = boundInputs.filter { it.type != ControlType.KEY }
-            if(joyInputs.size > 1) {
-                errors.add("Joysticks disabled, please remap buttons")
-            }
-        }
-        if(boundInputs.distinct().size < boundInputs.size) {
-            errors.add("Duplicate inputs detected")
-        }
-        val fs = getFileSystem()
-        val pathToOmf = novaConf.omfPath.toPath()
-        if(novaConf.omfPath.isBlank() || !fs.exists(pathToOmf)) {
-            errors.add("OMF location not configured!")
-        } else {
-            val omffiles = fs.list(pathToOmf)
-            val exec = omffiles.find { it.name.contains(other = "FILE0001.EXE", ignoreCase = true) }
-            val cfg = omffiles.find { it.name.contains(other = "SETUP.CFG", ignoreCase = true) }
-            if(exec == null || cfg == null) {
-                errors.add("Missing files in OMF location!")
-            }
-        }
-        val pathToDosbox = novaConf.dosboxPath.toPath()
-        if(novaConf.dosboxPath.isBlank() || !fs.exists(pathToDosbox)) {
-            errors.add("DOSBox location not configured!")
-        } else if(!fs.metadata(pathToDosbox).isRegularFile) {
-            errors.add("DOSBox location is not a file!")
-        }
-        return errors
     }
 
     private fun onEnd() {
@@ -219,6 +199,8 @@ interface NovaWindow {
     fun enableTraining()
     fun loadFont(fontMapping: OmfFont, textureHandle: Int): Int
     fun loadTexture(image: PCXImage): Int
+    fun loadTexturePng(path: String): Int
+    fun loadTextureFromRaster(raster: UByteArray, width: Int, height: Int): Int
     fun showImage(textureHandle: Int, x: Int, y: Int)
 }
 

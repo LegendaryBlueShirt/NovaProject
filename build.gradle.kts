@@ -28,7 +28,6 @@ kotlin {
                 linkerOpts = mutableListOf("-L${nativelibs}\\lib",
                     "-L${nativelibs}\\bin", "-L${project.projectDir}\\native\\lib",
                     "-lmingw32", "-lSDL2main", "-lSDL2", "-lSDL2_image",
-                    "-lSDL2_ttf",
                     "-mwindows")
             }
         }
@@ -57,6 +56,7 @@ kotlin {
     dependencies {
         commonMainImplementation(platform("com.squareup.okio:okio-bom:3.2.0"))
         commonMainImplementation("com.squareup.okio:okio")
+        commonMainImplementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
     }
 }
 

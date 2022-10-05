@@ -1,6 +1,7 @@
 package com.justnopoint.nova.menu
 
 import com.justnopoint.nova.*
+import okio.Path.Companion.toPath
 
 class MainMenu(project: NovaProject) : NovaMenu(project) {
     enum class State {
@@ -13,12 +14,14 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
     private val keyConfigMenu = KeyConfigMenu(project)
     private val gameMenu = GameMenu(project)
     private val configMenu = ConfigMenu(project)
+    private val replayMenu = ReplayMenu(project)
 
     override fun reset() {
         currentState = State.MENU
         selectedIndex = 0
         keyConfigMenu.reset()
         gameMenu.reset()
+        replayMenu.reset()
     }
 
     private fun canPlay(): Boolean {
@@ -43,6 +46,12 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
                     window.showText("Check settings!", MenuFonts.smallFont_red, hintCoordX, hintCoordY)
             }
             1 -> keyConfigMenu.render(window, frame)
+            2 -> {
+                if(canPlay())
+                    replayMenu.render(window, frame)
+                else
+                    window.showText("Check settings!", MenuFonts.smallFont_red, hintCoordX, hintCoordY)
+            }
             3 -> configMenu.render(window, frame)
         }
     }
@@ -62,6 +71,9 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
                 if(configMenu.currentState == ConfigMenu.State.MENU) {
                     currentState = State.MENU
                     project.loadOmfConfig()
+                    if(canPlay()) {
+                        replayMenu.loadReplays(project.novaConf.omfPath.toPath())
+                    }
                 }
             }
         }
@@ -81,6 +93,7 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
         when(selectedIndex) {
             0 -> gameMenu.up()
             1 -> keyConfigMenu.up()
+            2 -> replayMenu.up()
             3 -> configMenu.up()
         }
     }
@@ -89,6 +102,7 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
         when(selectedIndex) {
             0 -> gameMenu.down()
             1 -> keyConfigMenu.down()
+            2 -> replayMenu.down()
             3 -> configMenu.down()
         }
     }
@@ -106,7 +120,10 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
                 keyConfigMenu.startConfig()
             }
             2 -> {
-                //REPLAYS
+                if(canPlay()) {
+                    currentState = State.GAME
+                    replayMenu.select()
+                }
             }
             3 -> {
                 if(configMenu.startConfig()) {

@@ -1,6 +1,7 @@
 package com.justnopoint.nova
 
 import okio.Path
+import okio.Path.Companion.toPath
 import okio.buffer
 import okio.use
 
@@ -13,6 +14,47 @@ class NovaConf(val location: Path) {
     var saveReplays = false
     var userConf = false
     var stagingCompat = false
+
+    var errors: List<String> = emptyList()
+
+    fun checkErrors() {
+        val currentErrors = mutableListOf<String>()
+        val boundInputs = getBoundInputs()
+        if(isUsingHat()) {
+            val devices = boundInputs.filter { it.type != ControlType.KEY }.map { it.controlId }.distinct()
+            if(devices.size > 1) {
+                currentErrors.add("Hat not supported with two joysticks")
+            }
+        }
+        if(!joyEnabled) {
+            val joyInputs = boundInputs.filter { it.type != ControlType.KEY }
+            if(joyInputs.size > 1) {
+                currentErrors.add("Joysticks disabled, please remap buttons")
+            }
+        }
+        if(boundInputs.distinct().size < boundInputs.size) {
+            currentErrors.add("Duplicate inputs detected")
+        }
+        val fs = getFileSystem()
+        val pathToOmf = omfPath.toPath()
+        if(omfPath.isBlank() || !fs.exists(pathToOmf)) {
+            currentErrors.add("OMF location not configured!")
+        } else {
+            val omffiles = fs.list(pathToOmf)
+            val exec = omffiles.find { it.name.contains(other = "FILE0001.EXE", ignoreCase = true) }
+            val cfg = omffiles.find { it.name.contains(other = "SETUP.CFG", ignoreCase = true) }
+            if(exec == null || cfg == null) {
+                currentErrors.add("Missing files in OMF location!")
+            }
+        }
+        val pathToDosbox = dosboxPath.toPath()
+        if(dosboxPath.isBlank() || !fs.exists(pathToDosbox)) {
+            currentErrors.add("DOSBox location not configured!")
+        } else if(!fs.metadata(pathToDosbox).isRegularFile) {
+            currentErrors.add("DOSBox location is not a file!")
+        }
+        errors = currentErrors
+    }
 
     init {
         val fs = getFileSystem()

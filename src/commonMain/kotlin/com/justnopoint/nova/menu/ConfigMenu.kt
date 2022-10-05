@@ -119,6 +119,7 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
                         4 -> userConf = !userConf
                         5 -> saveReplays = !saveReplays
                     }
+                    checkErrors()
                 }
             }
             State.OMFCONF -> {
