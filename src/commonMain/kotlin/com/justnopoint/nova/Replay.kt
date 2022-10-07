@@ -99,7 +99,7 @@ class Replay(data: BufferedSource, val path: Path, val timestamp: Long) {
         val nameBytes = ByteArray(18)
         p1data.copyInto(destination = nameBytes, startIndex = 4, endIndex = 22)
         p1Name = nameBytes.decodeToString().takeWhile { it.isLetterOrDigit() }
-        p1HarId = p1data[26].toInt()
+        p1HarId = p1data[27].toInt()
 
         val p2data = data.readByteArray(428)
         for(n in 0 until 428) {
@@ -110,7 +110,7 @@ class Replay(data: BufferedSource, val path: Path, val timestamp: Long) {
         val hasPortrait2 = data.readByte()
         p2data.copyInto(destination = nameBytes, startIndex = 4, endIndex = 22)
         p2Name = nameBytes.decodeToString().takeWhile { it.isLetterOrDigit() }
-        p2HarId = p2data[26].toInt()
+        p2HarId = p2data[27].toInt()
 
         p1Score = data.readIntLe()
         p2Score = data.readIntLe()
