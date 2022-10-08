@@ -24,6 +24,7 @@ class OMFConf(handle: FileHandle) {
     private val unkFooter = ByteArray(38)
 
     companion object {
+        const val FILENAME = "SETUP.CFG"
         fun isValid(handle: FileHandle): Boolean {
             return true //TODO
         }

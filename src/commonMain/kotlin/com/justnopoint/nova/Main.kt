@@ -158,7 +158,7 @@ class NovaProject {
     }
 
     fun loadOmfConfig() {
-        val configPath = novaConf.omfPath.toPath().div("SETUP.CFG")
+        val configPath = novaConf.omfPath.toPath().div(OMFConf.FILENAME)
         val fs = getFileSystem()
         if (fs.exists(configPath)) {
             fs.openReadOnly(configPath).use {

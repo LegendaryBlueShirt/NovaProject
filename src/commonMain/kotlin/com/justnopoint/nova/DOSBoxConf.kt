@@ -76,6 +76,9 @@ class DOSBoxConf {
                         "[joystick]\njoysticktype=none\n"
                     )
                 }
+                if(SoundCard.isGravisEnabled(novaConf.omfPath.toPath())) {
+                    it.writeUtf8("[gus]\ngus=true\n")
+                }
             }
         }
     }
