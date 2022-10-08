@@ -11,12 +11,16 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
     private var selectedIndex = 0
     private var currentState = State.MENU
 
+    private var idleCounter = 0
+    private var idleLimit = 60 * 90
+
     private val keyConfigMenu = KeyConfigMenu(project)
     private val gameMenu = GameMenu(project)
     private val configMenu = ConfigMenu(project)
     private val replayMenu = ReplayMenu(project)
 
     override fun reset() {
+        idleCounter = 0
         currentState = State.MENU
         selectedIndex = 0
         keyConfigMenu.reset()
@@ -24,11 +28,18 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
         replayMenu.reset()
     }
 
+    fun gameEnd() {
+        idleCounter = 0
+        currentState = State.MENU
+    }
+
     private fun canPlay(): Boolean {
         return project.novaConf.dosboxPath.isNotBlank() && (project.omfConfig!=null)
     }
 
     override fun render(window: NovaWindow, frame: Int) {
+        idleCounter++
+
         val coordY = 140 * scale
 
         if(currentState != State.GAME) {
@@ -54,9 +65,20 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
             }
             3 -> configMenu.render(window, frame)
         }
+
+        if(project.novaConf.attract) {
+            if (currentState != State.GAME) {
+                if (idleCounter > idleLimit) {
+                    currentState = State.GAME
+                    replayMenu.randomReplay()
+                }
+            }
+        }
     }
 
     override fun handleInput(input: ButtonMap) {
+        idleCounter = 0
+
         when(currentState) {
             State.MENU -> super.handleInput(input)
             State.KEYCONFIG1 -> {

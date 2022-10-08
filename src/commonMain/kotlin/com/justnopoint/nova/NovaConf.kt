@@ -13,6 +13,7 @@ class NovaConf(val location: Path) {
     var saveReplays = false
     var userConf = false
     var stagingCompat = false
+    var attract = false
 
     var errors: List<String> = emptyList()
 
@@ -78,6 +79,7 @@ class NovaConf(val location: Path) {
             joyEnabled = (readUtf8Line()?:"true").toBoolean()
             saveReplays = (readUtf8Line()?:"false").toBoolean()
             userConf = (readUtf8Line()?:"false").toBoolean()
+            attract = (readUtf8Line()?:"false").toBoolean()
         }
     }
 
@@ -91,6 +93,7 @@ class NovaConf(val location: Path) {
             writeUtf8("$joyEnabled\n")
             writeUtf8("$saveReplays\n")
             writeUtf8("$userConf\n")
+            writeUtf8("$attract\n")
         }
     }
 

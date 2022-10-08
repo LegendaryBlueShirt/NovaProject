@@ -7,6 +7,7 @@ import kotlinx.datetime.toLocalDateTime
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
+import platform.posix.rand
 
 class ReplayMenu(project: NovaProject) : NovaMenu(project) {
     private var firstItem = 0
@@ -88,6 +89,13 @@ class ReplayMenu(project: NovaProject) : NovaMenu(project) {
 
     override fun select() {
         val relative = replays[selected].path.relativeTo(project.novaConf.omfPath.toPath())
+        project.startReplay(relative)
+    }
+
+    fun randomReplay() {
+        if(replays.isEmpty()) return
+        val randomReplay = replays.indices.random()
+        val relative = replays[randomReplay].path.relativeTo(project.novaConf.omfPath.toPath())
         project.startReplay(relative)
     }
 }

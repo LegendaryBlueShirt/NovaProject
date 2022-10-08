@@ -4,6 +4,7 @@ import com.justnopoint.nova.menu.MainMenu
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
+import kotlin.system.getTimeMillis
 
 fun main() {
     getNativeWindow()?.let {
@@ -26,12 +27,25 @@ class NovaProject {
     private var bgTex = 0
     private var darkener = 0
 
+    private var startFrameTime = 0L
+    private val millisPerFrame = 1000.0 / 60
+
     fun runLoop(window: NovaWindow) {
         onStart(window)
+        startFrameTime = getTimeMillis()
+        var currentFrameTime: Long
+        var nextFrameTime: Long
         while (!quit) {
             window.processEvents(this)
-            renderFrame()
-            frameCount++
+            currentFrameTime = getTimeMillis()
+            nextFrameTime = (startFrameTime + (frameCount*millisPerFrame).toLong())
+            if(currentFrameTime > nextFrameTime) {
+                renderFrame()
+                frameCount++
+                if(frameCount < 0) {
+                    frameCount = 0
+                }
+            }
         }
         onEnd()
     }
@@ -105,7 +119,7 @@ class NovaProject {
     }
 
     fun dosBoxFinished() {
-        mainMenu.reset()
+        mainMenu.gameEnd()
     }
 
     private fun writeOmfConfig(singlePlayer: Boolean) {

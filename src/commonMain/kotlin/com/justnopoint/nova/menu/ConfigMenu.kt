@@ -42,8 +42,8 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
                 }
             }
             State.NOVACONF -> {
-                if(selectedIndex < 0) selectedIndex = 5
-                if(selectedIndex > 5) selectedIndex = 0
+                if(selectedIndex < 0) selectedIndex = 6
+                if(selectedIndex > 6) selectedIndex = 0
 
                 renderText(window, "DOSBox location", 18 * scale, 20 * scale, selectedIndex == 0, frame)
                 renderText(window, "Is DOSBox Staging?", 18 * scale, 46 * scale, selectedIndex == 1, frame)
@@ -51,6 +51,7 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
                 renderText(window, "Joystick Support", 18 * scale, 85 * scale, selectedIndex == 3, frame)
                 renderText(window, "Use My DOSBox Settings", 18 * scale, 98 * scale, selectedIndex == 4, frame)
                 renderText(window, "Save Replays", 18 * scale, 111 * scale, selectedIndex == 5, frame)
+                renderText(window, "Attract Mode", 18 * scale, 124 * scale, selectedIndex == 6, frame)
 
                 window.showText(project.novaConf.dosboxPath.reversed(), MenuFonts.smallFont_yellow,302*scale, 33*scale, true)
                 renderReversed(window,
@@ -59,6 +60,7 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
                 renderReversed(window, if(project.novaConf.joyEnabled) "On" else "Off", 302 * scale, 85 * scale, selectedIndex == 3, frame)
                 renderReversed(window, if(project.novaConf.userConf) "Yes" else "No", 302 * scale, 98 * scale, selectedIndex == 4, frame)
                 renderReversed(window, if(project.novaConf.saveReplays) "On" else "Off", 302 * scale, 111 * scale, selectedIndex == 5, frame)
+                renderReversed(window, if(project.novaConf.attract) "On" else "Off", 302 * scale, 124 * scale, selectedIndex == 6, frame)
 
                 when(selectedIndex) {
                     0 -> window.showText("Set the location for DOSBox", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
@@ -67,6 +69,7 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
                     3 -> window.showText("Turn this off if you are using a program like AntiMicro to map controllers to the keyboard.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
                     4 -> window.showText("Turn this on to use your current dosbox settings if they are not default.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
                     5 -> window.showText("Turn this on to automatically get REC files after every match.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
+                    6 -> window.showText("Turn this on to automatically play random replays when idle.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
                 }
             }
             State.OMFCONF -> {
@@ -118,6 +121,7 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
                         }
                         4 -> userConf = !userConf
                         5 -> saveReplays = !saveReplays
+                        6 -> attract = !attract
                     }
                     checkErrors()
                 }
