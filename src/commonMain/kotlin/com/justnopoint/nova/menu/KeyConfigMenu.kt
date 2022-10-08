@@ -97,8 +97,10 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
     }
 
     override fun cancel() {
-        if(currentState == KeyConfigState.CONFIGURE)
+        if(currentState == KeyConfigState.CONFIGURE) {
             currentState = KeyConfigState.MENU
+            project.novaConf.checkErrors()
+        }
     }
 
     fun startConfig() {

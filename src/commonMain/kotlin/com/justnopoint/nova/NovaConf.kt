@@ -42,7 +42,7 @@ class NovaConf(val location: Path) {
         } else {
             val omffiles = fs.list(pathToOmf)
             val exec = omffiles.find { it.name.contains(other = "FILE0001.EXE", ignoreCase = true) }
-            val cfg = omffiles.find { it.name.contains(other = "SETUP.CFG", ignoreCase = true) }
+            val cfg = omffiles.find { it.name.contains(other = OMFConf.FILENAME, ignoreCase = true) }
             if(exec == null || cfg == null) {
                 currentErrors.add("Missing files in OMF location!")
             }
