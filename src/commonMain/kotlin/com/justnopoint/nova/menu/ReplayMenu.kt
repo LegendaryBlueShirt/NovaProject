@@ -4,6 +4,7 @@ import com.justnopoint.nova.*
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
 
@@ -66,7 +67,7 @@ class ReplayMenu(project: NovaProject) : NovaMenu(project) {
         selected = 0
         firstItem = 0
 
-        val fs = getFileSystem()
+        val fs = FileSystem.SYSTEM
         val replayFiles = fs.list(folder).filter { it.name.endsWith(suffix = ".rec", ignoreCase = true) }
         replays = replayFiles.mapNotNull {
             try {

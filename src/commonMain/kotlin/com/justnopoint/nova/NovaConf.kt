@@ -1,9 +1,8 @@
 package com.justnopoint.nova
 
+import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
-import okio.buffer
-import okio.use
 
 class NovaConf(val location: Path) {
     var dosboxPath = ""
@@ -35,7 +34,7 @@ class NovaConf(val location: Path) {
         if(boundInputs.distinct().size < boundInputs.size) {
             currentErrors.add("Duplicate inputs detected")
         }
-        val fs = getFileSystem()
+        val fs = FileSystem.SYSTEM
         val pathToOmf = omfPath.toPath()
         if(omfPath.isBlank() || !fs.exists(pathToOmf)) {
             currentErrors.add("OMF location not configured!")
@@ -57,46 +56,41 @@ class NovaConf(val location: Path) {
     }
 
     init {
-        val fs = getFileSystem()
+        val fs = FileSystem.SYSTEM
         if(!fs.exists(location)) {
             save()
         }
-        fs.openReadOnly(location).use { handle ->
-            handle.source().buffer().use {
-                dosboxPath = it.readUtf8Line()?:""
-                omfPath = it.readUtf8Line()?:""
-                p1Config.up = (it.readUtf8Line()?:"").toButtonMap()
-                p1Config.down = (it.readUtf8Line()?:"").toButtonMap()
-                p1Config.left = (it.readUtf8Line()?:"").toButtonMap()
-                p1Config.right = (it.readUtf8Line()?:"").toButtonMap()
-                p1Config.punch = (it.readUtf8Line()?:"").toButtonMap()
-                p1Config.kick = (it.readUtf8Line()?:"").toButtonMap()
-                p2Config.up = (it.readUtf8Line()?:"").toButtonMap()
-                p2Config.down = (it.readUtf8Line()?:"").toButtonMap()
-                p2Config.left = (it.readUtf8Line()?:"").toButtonMap()
-                p2Config.right = (it.readUtf8Line()?:"").toButtonMap()
-                p2Config.punch = (it.readUtf8Line()?:"").toButtonMap()
-                p2Config.kick = (it.readUtf8Line()?:"").toButtonMap()
-                joyEnabled = (it.readUtf8Line()?:"true").toBoolean()
-                saveReplays = (it.readUtf8Line()?:"false").toBoolean()
-                userConf = (it.readUtf8Line()?:"false").toBoolean()
-            }
+        fs.read(location) {
+            dosboxPath = readUtf8Line()?:""
+            omfPath = readUtf8Line()?:""
+            p1Config.up = (readUtf8Line()?:"").toButtonMap()
+            p1Config.down = (readUtf8Line()?:"").toButtonMap()
+            p1Config.left = (readUtf8Line()?:"").toButtonMap()
+            p1Config.right = (readUtf8Line()?:"").toButtonMap()
+            p1Config.punch = (readUtf8Line()?:"").toButtonMap()
+            p1Config.kick = (readUtf8Line()?:"").toButtonMap()
+            p2Config.up = (readUtf8Line()?:"").toButtonMap()
+            p2Config.down = (readUtf8Line()?:"").toButtonMap()
+            p2Config.left = (readUtf8Line()?:"").toButtonMap()
+            p2Config.right = (readUtf8Line()?:"").toButtonMap()
+            p2Config.punch = (readUtf8Line()?:"").toButtonMap()
+            p2Config.kick = (readUtf8Line()?:"").toButtonMap()
+            joyEnabled = (readUtf8Line()?:"true").toBoolean()
+            saveReplays = (readUtf8Line()?:"false").toBoolean()
+            userConf = (readUtf8Line()?:"false").toBoolean()
         }
     }
 
     fun save() {
-        val fs = getFileSystem()
-        fs.openReadWrite(location, mustCreate = false, mustExist = false).use { handle ->
-            handle.sink().buffer().use {
-                it.writeUtf8("$dosboxPath\n")
-                it.writeUtf8("$omfPath\n")
-                getBoundInputs().forEach { binding ->
-                    it.writeUtf8("${binding.toNovaConf()}\n")
-                }
-                it.writeUtf8("$joyEnabled\n")
-                it.writeUtf8("$saveReplays\n")
-                it.writeUtf8("$userConf\n")
+        FileSystem.SYSTEM.write(file = location, mustCreate = false) {
+            writeUtf8("$dosboxPath\n")
+            writeUtf8("$omfPath\n")
+            getBoundInputs().forEach { binding ->
+                writeUtf8("${binding.toNovaConf()}\n")
             }
+            writeUtf8("$joyEnabled\n")
+            writeUtf8("$saveReplays\n")
+            writeUtf8("$userConf\n")
         }
     }
 

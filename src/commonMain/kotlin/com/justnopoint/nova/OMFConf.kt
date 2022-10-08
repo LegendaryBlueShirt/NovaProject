@@ -2,11 +2,9 @@
 
 package com.justnopoint.nova
 
-import okio.FileHandle
-import okio.buffer
-import okio.use
+import okio.*
 
-class OMFConf(handle: FileHandle) {
+class OMFConf(buffer: BufferedSource) {
     var speed = 8
     var difficulty = 0
     var throwRange = 100
@@ -31,53 +29,46 @@ class OMFConf(handle: FileHandle) {
     }
 
     init {
-        handle.source().buffer().use { buffer ->
-            handle.reposition(buffer, 0)
-
-            speed = buffer.readByte().toUByte().toInt()
-            buffer.read(controlSettings)
-            p1ControlType = buffer.readShortLe().toInt()
-            buffer.skip(4)
-            buffer.read(unknowns)
-            difficulty = buffer.readShortLe().toInt()
-            throwRange = buffer.readShortLe().toInt()
-            hitPause = buffer.readShortLe().toInt()
-            blockDamage = buffer.readShortLe().toInt()
-            vitality = buffer.readShortLe().toInt()
-            jumpHeight = buffer.readShortLe().toInt()
-            buffer.readByteArray(8).toUByteArray().copyInto(flags)
-            sound = buffer.readByte().toUByte().toInt()
-            music = buffer.readByte().toUByte().toInt()
-            buffer.read(unkFooter)
-        }
+        speed = buffer.readByte().toUByte().toInt()
+        buffer.read(controlSettings)
+        p1ControlType = buffer.readShortLe().toInt()
+        buffer.skip(4)
+        buffer.read(unknowns)
+        difficulty = buffer.readShortLe().toInt()
+        throwRange = buffer.readShortLe().toInt()
+        hitPause = buffer.readShortLe().toInt()
+        blockDamage = buffer.readShortLe().toInt()
+        vitality = buffer.readShortLe().toInt()
+        jumpHeight = buffer.readShortLe().toInt()
+        buffer.readByteArray(8).toUByteArray().copyInto(flags)
+        sound = buffer.readByte().toUByte().toInt()
+        music = buffer.readByte().toUByte().toInt()
+        buffer.read(unkFooter)
     }
 
-    fun buildFile(handle: FileHandle, isSinglePlayer: Boolean = false) {
-        handle.sink().buffer().use {
-            handle.reposition(it, 0)
-            it.writeByte(speed)
-            it.write(controlSettings)
-            if(isSinglePlayer) {
-                it.writeShortLe(8)
-                it.writeShortLe(7)
-                it.writeShortLe(7)
-            } else {
-                it.writeShortLe(8)
-                it.writeShortLe(7)
-                it.writeShortLe(8)
-            }
-            it.write(unknowns)
-            it.writeShortLe(difficulty)
-            it.writeShortLe(throwRange)
-            it.writeShortLe(hitPause)
-            it.writeShortLe(blockDamage)
-            it.writeShortLe(vitality)
-            it.writeShortLe(jumpHeight)
-            it.write(flags.toByteArray())
-            it.writeByte(sound)
-            it.writeByte(music)
-            it.write(unkFooter)
+    fun buildFile(buffer: BufferedSink, isSinglePlayer: Boolean = false) {
+        buffer.writeByte(speed)
+        buffer.write(controlSettings)
+        if(isSinglePlayer) {
+            buffer.writeShortLe(8)
+            buffer.writeShortLe(7)
+            buffer.writeShortLe(7)
+        } else {
+            buffer.writeShortLe(8)
+            buffer.writeShortLe(7)
+            buffer.writeShortLe(8)
         }
+        buffer.write(unknowns)
+        buffer.writeShortLe(difficulty)
+        buffer.writeShortLe(throwRange)
+        buffer.writeShortLe(hitPause)
+        buffer.writeShortLe(blockDamage)
+        buffer.writeShortLe(vitality)
+        buffer.writeShortLe(jumpHeight)
+        buffer.write(flags.toByteArray())
+        buffer.writeByte(sound)
+        buffer.writeByte(music)
+        buffer.write(unkFooter)
     }
 
     var p1power: Int

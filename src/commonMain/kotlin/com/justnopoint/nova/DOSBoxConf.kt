@@ -1,9 +1,8 @@
 package com.justnopoint.nova
 
+import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
-import okio.buffer
-import okio.use
 
 expect fun getDosboxScancodeMap(): Map<Int, Int>
 expect fun getDosboxStagingScancodeMap(): Map<Int, Int>
@@ -18,12 +17,13 @@ class DOSBoxConf {
     }
 
     fun getConfPath(): Path {
-        return getFileSystem().canonicalize(confPath)
+        return FileSystem.SYSTEM.canonicalize(confPath)
     }
 
     private fun writeDosboxMapperFile(mapping: Map<Int, Int>, p1Config: ControlMapping, p2Config: ControlMapping) {
-        getFileSystem().delete(path = mapperPath, mustExist = false)
-        getFileSystem().write(file = mapperPath, mustCreate = true) {
+        val fs = FileSystem.SYSTEM
+        fs.delete(path = mapperPath, mustExist = false)
+        fs.write(file = mapperPath, mustCreate = true) {
             writeUtf8("key_esc \"key ${mapping[27]}\"\n")
             writeUtf8("key_1 \"key ${mapping[49]}\"\n")
             writeUtf8("key_2 \"key ${mapping[50]}\"\n")
@@ -51,10 +51,10 @@ class DOSBoxConf {
     }
 
     private fun writeDosboxConfFile(novaConf: NovaConf) {
-        val fs = getFileSystem()
+        val fs = FileSystem.SYSTEM
         val absoluteMapperPath = fs.canonicalize(mapperPath)
-        getFileSystem().delete(path = confPath, mustExist = false)
-        getFileSystem().write(file = confPath, mustCreate = true) {
+        fs.delete(path = confPath, mustExist = false)
+        fs.write(file = confPath, mustCreate = true) {
             writeUtf8(
                 "[sdl]\nwaitonerror=false\nmapperfile=${absoluteMapperPath}\npriority=normal,normal\n"
             )

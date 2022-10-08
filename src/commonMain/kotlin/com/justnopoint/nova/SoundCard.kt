@@ -8,12 +8,10 @@ class SoundCard {
 
         fun isGravisEnabled(omfPath: Path): Boolean {
             val soundcardFile = omfPath.div(FILENAME)
-            val string = getFileSystem().openReadOnly(soundcardFile).use {
-                it.source().buffer().use { buffer ->
-                    buffer.skip(8)
-                    val stringbytes = buffer.readByteArray(12)
-                    stringbytes.decodeToString()
-                }
+            val string = FileSystem.SYSTEM.read(soundcardFile) {
+                skip(8)
+                val stringbytes = readByteArray(12)
+                stringbytes.decodeToString()
             }
             return string == "MASIULTRASND"
         }

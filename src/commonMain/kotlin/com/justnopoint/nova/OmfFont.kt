@@ -1,5 +1,6 @@
 package com.justnopoint.nova
 
+import okio.FileSystem
 import okio.Path.Companion.toPath
 import okio.buffer
 import okio.use
@@ -10,25 +11,23 @@ class OmfFont(fontMap: String) {
     private val glyphMap = mutableMapOf<Char, Glyph>()
 
     init {
-        getFileSystem().openReadOnly(fontMap.toPath()).use { handle ->
-            handle.source().buffer().use { buffer ->
-                val start = buffer.readUtf8Line()?.split(":")?:return@use
-                if(start.size < 4) return@use
-                val fontHeight = start[0].toInt()
-                start.subList(1,start.size).onEachIndexed { index, charCount ->
-                    val yIndex = 1 + (fontHeight+1)*index
-                    var xIndex = 0
-                    (0 until charCount.toInt()).forEach { _ ->
-                        buffer.readUtf8Line()?.let {
-                            if(it.length < 2) return@let
-                            val charWidth = it[1].digitToInt()
-                            glyphMap[it[0]] = Glyph(
-                                x = ++xIndex,
-                                y = yIndex,
-                                w = charWidth,
-                                h = fontHeight)
-                            xIndex += charWidth
-                        }
+        FileSystem.SYSTEM.read(file=fontMap.toPath()) {
+            val start = readUtf8Line()?.split(":")?:return@read
+            if(start.size < 4) return@read
+            val fontHeight = start[0].toInt()
+            start.subList(1,start.size).onEachIndexed { index, charCount ->
+                val yIndex = 1 + (fontHeight+1)*index
+                var xIndex = 0
+                (0 until charCount.toInt()).forEach { _ ->
+                    readUtf8Line()?.let {
+                        if(it.length < 2) return@let
+                        val charWidth = it[1].digitToInt()
+                        glyphMap[it[0]] = Glyph(
+                            x = ++xIndex,
+                            y = yIndex,
+                            w = charWidth,
+                            h = fontHeight)
+                        xIndex += charWidth
                     }
                 }
             }

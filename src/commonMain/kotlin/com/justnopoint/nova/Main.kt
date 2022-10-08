@@ -4,7 +4,6 @@ import com.justnopoint.nova.menu.MainMenu
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
-import okio.use
 
 fun main() {
     getNativeWindow()?.let {
@@ -13,7 +12,6 @@ fun main() {
 }
 
 expect fun getNativeWindow(): NovaWindow?
-expect fun getFileSystem(): FileSystem
 
 class NovaProject {
     private var quit = false
@@ -112,8 +110,8 @@ class NovaProject {
 
     private fun writeOmfConfig(singlePlayer: Boolean) {
         val configPath = novaConf.omfPath.toPath().div("SETUP.CFG")
-        getFileSystem().openReadWrite(configPath, mustCreate = false, mustExist = false).use {
-            omfConfig?.buildFile(it, singlePlayer)
+        FileSystem.SYSTEM.write(file = configPath, mustCreate = false) {
+            omfConfig?.buildFile(this, singlePlayer)
         }
     }
 
@@ -159,11 +157,9 @@ class NovaProject {
 
     fun loadOmfConfig() {
         val configPath = novaConf.omfPath.toPath().div(OMFConf.FILENAME)
-        val fs = getFileSystem()
+        val fs = FileSystem.SYSTEM
         if (fs.exists(configPath)) {
-            fs.openReadOnly(configPath).use {
-                omfConfig = OMFConf(it)
-            }
+            omfConfig = fs.read(file = configPath, readerAction = ::OMFConf)
         }
     }
 

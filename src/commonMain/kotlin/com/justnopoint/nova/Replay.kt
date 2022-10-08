@@ -1,22 +1,18 @@
 package com.justnopoint.nova
 
-import okio.BufferedSource
-import okio.Path
-import okio.buffer
-import okio.use
+import okio.*
 import kotlin.experimental.xor
 
 class Replay(data: BufferedSource, val path: Path, val timestamp: Long) {
     companion object {
         fun loadReplay(file: Path): Replay {
-            val fs = getFileSystem()
+            val fs = FileSystem.SYSTEM
             val metadata = fs.metadata(file)
             val timestamp = metadata.createdAtMillis?:metadata.lastModifiedAtMillis?:0L
-            return fs.openReadOnly(file).use { handle ->
-                handle.source().buffer().use {buffer ->
-                    Replay(buffer, file, timestamp)
-                }
+            val replay = fs.read(file = file) {
+                Replay(this, file, timestamp)
             }
+            return replay
         }
 
         val Stages = listOf(
