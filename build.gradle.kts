@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.scripting.definitions.StandardScriptDefinition.platform
+import org.jetbrains.kotlin.types.error.ErrorModuleDescriptor.platform
+
 plugins {
     kotlin("multiplatform") version "1.7.20"
 }
@@ -14,16 +17,40 @@ val konanUserDir = System.getenv("KONAN_DATA_DIR") ?: "${System.getProperty("use
 val resFile = file("$buildDir/konan/res/Nova.res")
 
 kotlin {
-    val hostOs = System.getProperty("os.name")
-    val isMingwX64 = hostOs.startsWith("Windows")
-    val nativeTarget = when {
-        hostOs == "Mac OS X" -> macosX64("native")
-        hostOs == "Linux" -> linuxX64("native")
-        isMingwX64 -> mingwX64("native")
-        else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
+//    val hostOs = System.getProperty("os.name")
+//    val isMingwX64 = hostOs.startsWith("Windows")
+//    val nativeTarget = when {
+//        hostOs == "Mac OS X" -> macosX64("native")
+//        hostOs == "Linux" -> linuxX64("native")
+//        isMingwX64 -> mingwX64("native")
+//        else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
+//    }
+
+    linuxX64("linux").apply {
+        binaries {
+            executable("nova") {
+                entryPoint = "com.justnopoint.nova.main"
+                linkerOpts = mutableListOf("$resFile",
+                    "-L${nativelibs}\\lib",
+                    "-L${nativelibs}\\bin", "-L${project.projectDir}\\native\\lib",
+                    "-lX11",
+                    "-lmingw32", "-lSDL2main", "-lSDL2", "-lSDL2_image")
+            }
+        }
+        compilations.getByName("main").cinterops {
+            val SDL by creating {
+                includeDirs {
+                    allHeaders("${nativelibs}\\include")
+                }
+                extraOpts = mutableListOf(
+                    "-libraryPath", "${nativelibs}\\lib",
+                    "-libraryPath", "${nativelibs}\\bin"
+                )
+            }
+        }
     }
 
-    nativeTarget.apply {
+    mingwX64("native").apply {
         binaries {
             executable("nova") {
                 entryPoint = "com.justnopoint.nova.main"
@@ -52,8 +79,15 @@ kotlin {
         }
     }
     sourceSets {
-        val nativeMain by getting
-        val nativeTest by getting
+        val sdlMain by creating {
+            dependsOn(commonMain.get())
+        }
+        val nativeMain by getting {
+            dependsOn(sdlMain)
+        }
+        val linuxMain by getting {
+            dependsOn(sdlMain)
+        }
     }
 
     dependencies {

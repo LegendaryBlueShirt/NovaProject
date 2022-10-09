@@ -1,14 +1,13 @@
 package com.justnopoint.nova
 
-import SDL.*
 import kotlinx.cinterop.*
 import platform.posix.wchar_tVar
 import platform.windows.*
 import tinyfiledialogs.*
 
 actual fun getNativeWindow(): NovaWindow? {
-    val container = KissContainer()
-    return if(initSDL(container)) {
+    val container = Win32Container()
+    return if(container.init()) {
         container
     } else {
         null
@@ -19,20 +18,7 @@ var processInfo: CPointer<PROCESS_INFORMATION>? = null
 val processExitCode = MemScope().alloc<DWORDVar>()
 var trainingMode = false
 
-class KissContainer: NovaWindow {
-
-    //* UI Pointers *//
-    private var window: CPointer<SDL_Window>? = null
-    private var renderer: CPointer<SDL_Renderer>? = null
-    private val dstRect: SDL_Rect = MemScope().alloc()
-    private val textures = mutableListOf<CPointer<SDL_Texture>>()
-    private val fontRenderers = mutableListOf<OmfFontRenderer>()
-
-    //* Joystick Management *//
-    private var joyEnabled = false
-    private val joystickDevices = mutableMapOf<Int, CPointer<SDL_Joystick>>()
-    private val joystickIdToDevice = mutableMapOf<Int, Int>()
-
+class Win32Container: NovaWindowSDL() {
     //* Training Mode Input Handling *//
     private var trainingHook: HHOOK? = null
     private val winKeyHook = staticCFunction { nCode: Int, wParam: WPARAM, lParam: LPARAM ->
@@ -43,108 +29,25 @@ class KissContainer: NovaWindow {
     }
 
 
-    fun init(): Boolean {
-        IMG_Init(IMG_INIT_PNG.toInt())
-        window = SDL_CreateWindow("Nova Project", SDL_WINDOWPOS_UNDEFINED.toInt(), SDL_WINDOWPOS_UNDEFINED.toInt(), 640, 400, 0)
-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)
-
+    override fun init(): Boolean {
         trainingHook = SetWindowsHookEx?.invoke(WH_KEYBOARD_LL, winKeyHook, null, 0u)
 
-        return renderer != null
+        return super.init()
+    }
+
+    override fun enableTraining() {
+        trainingMode = true
     }
 
     override fun destroy() {
         UnhookWindowsHookEx(trainingHook)
     }
 
-    private val texW = MemScope().alloc<IntVar>()
-    private val texH = MemScope().alloc<IntVar>()
-
-    override fun startRender() {
-        SDL_RenderClear(renderer)
-    }
-
-    override fun endRender() {
-        SDL_RenderPresent(renderer)
-    }
-
-    private val event = MemScope().alloc<SDL_Event>()
     private val winmsg = MemScope().alloc<tagMSG>().ptr
-    override fun processEvents(project: NovaProject) = memScoped {
-        while (SDL_PollEvent(event.ptr) != 0) {
-            when(event.type) {
-                SDL_QUIT -> project.quit()
-                SDL_KEYDOWN -> {
-                    val name = SDL_GetKeyName(event.key.keysym.sym)?.toKString()
-                    val code = event.key.keysym.scancode
-                    if(virtKeyMapping.containsKey(code)) {
-                        val input = ButtonMap(type = ControlType.KEY, scancode = virtKeyMapping[code]!!, name = name)
-                        project.handleInput(input)
-                    }
-                }
-                SDL_JOYBUTTONDOWN -> {
-                    val controller = getActualControllerId(event.jbutton.which)
-                    val button = event.jbutton.button
-                    val input = ButtonMap(type = ControlType.BUTTON, controlId = controller, axisId = button.toInt(), name = "Joy $controller Button $button")
-                    project.handleInput(input)
-                }
-                SDL_JOYAXISMOTION -> {
-                    val value = event.jaxis.value
-                    val dir = if(value < -3200) 0 else if(value > 3200) 1 else 2
-                    if(dir < 2) {
-                        val controller = getActualControllerId(event.jaxis.which)
-                        val axis = event.jaxis.axis
-                        val input = ButtonMap(
-                            type = ControlType.AXIS,
-                            controlId = controller,
-                            axisId = axis.toInt(),
-                            direction = dir,
-                            name = "Joy $controller Axis $axis ${if(dir == 0) "-" else "+"}"
-                        )
-                        project.handleInput(input)
-                    }
-                }
-                SDL_JOYHATMOTION -> {
-                    val dir = event.jhat.value.toInt()
-                    if(dir != 0) {
-                        val controller = getActualControllerId(event.jhat.which)
-                        val hatId = event.jhat.hat
-                        val input = ButtonMap(
-                            type = ControlType.HAT,
-                            controlId = controller,
-                            axisId = hatId.toInt(),
-                            direction = dir,
-                            name = "Joy $controller Hat $hatId $dir"
-                        )
-                        project.handleInput(input)
-                    }
-                }
-                SDL_JOYDEVICEADDED -> {
-                    if(joyEnabled) {
-                        println("Adding joystick ${event.jdevice.which}")
-                        val id = event.jdevice.which
-                        SDL_JoystickOpen(id)?.let {
-                            joystickDevices[id] = it
-                            joystickIdToDevice[SDL_JoystickGetDeviceInstanceID(id)] = id
-                        }
-                    }
-                }
-                SDL_JOYDEVICEREMOVED -> {
-                    if(joyEnabled) {
-                        println("Removing joystick ${event.jdevice.which}")
-                        val instanceId = event.jdevice.which
-                        val deviceId = joystickIdToDevice[instanceId]?: continue
-                        joystickDevices[deviceId]?.let {
-                            if (SDL_JoystickGetAttached(it) != 0u) {
-                                SDL_JoystickClose(it)
-                            }
-                            joystickDevices.remove(deviceId)
-                            joystickIdToDevice.remove(instanceId)
-                        }
-                    }
-                }
-            }
-        }
+    override fun processEvents(project: NovaProject) {
+        super.processEvents(project)
+
+        //DOSBox process handler
         processInfo?.pointed?.let {
             GetExitCodeProcess(it.hProcess, processExitCode.ptr)
             if(processExitCode.value != STILL_ACTIVE) {
@@ -161,34 +64,18 @@ class KissContainer: NovaWindow {
                 }
             }
         }
+
+        //Training mode handling
         while(PeekMessage?.invoke(winmsg, null, 0u, 0u, PM_REMOVE.toUInt()) != 0) {
             TranslateMessage(winmsg)
             DispatchMessage?.invoke(winmsg)
         }
     }
 
-    override fun showImage(textureHandle: Int, x: Int, y: Int) {
-        val texture = textures[textureHandle]
-        SDL_QueryTexture(texture, null, null, texW.ptr, texH.ptr)
-        dstRect.x = x
-        dstRect.y = y
-        dstRect.w = texW.value * 2
-        dstRect.h = texH.value * 2
-        SDL_RenderCopy(renderer, texture, null, dstRect.ptr)
-    }
-
-    override fun showText(textLine: String, font: Int, x: Int, y: Int, reverse: Boolean) {
-        fontRenderers[font].drawText(textLine, x, y, reverse)
-    }
-
     override fun executeCommand(executable: String, command: String) {
         processInfo = executeCommandNative(executable, command)
         //dosboxWindow = SDL_CreateWindowFrom(hwnd)?.pointed
         //com.justnopoint.nova.getProcessInfo?.pointed?.hProcess
-    }
-
-    override fun enableTraining() {
-        trainingMode = true
     }
 
     override fun showFolderChooser(start: String, prompt: String): String {
@@ -212,94 +99,6 @@ class KissContainer: NovaWindow {
             )
         return selectedFile?.toKStringFromUtf16()?:""
     }
-
-    override fun setJoystickEnabled(joyEnabled: Boolean) {
-        this.joyEnabled = joyEnabled
-        if(joyEnabled) {
-            val joys = SDL_NumJoysticks()
-            (0 until joys).forEach { id ->
-                SDL_JoystickOpen(id)?.let {
-                    joystickDevices[id] = it
-                    joystickIdToDevice[SDL_JoystickGetDeviceInstanceID(id)] = id
-                }
-            }
-        } else {
-            joystickDevices.forEach { (_, joy) ->
-                if (SDL_JoystickGetAttached(joy) != 0u) {
-                    SDL_JoystickClose(joy)
-                }
-            }
-            joystickIdToDevice.clear()
-            joystickDevices.clear()
-        }
-    }
-
-    val fontSrcRect: SDL_Rect = MemScope().alloc()
-    val fontDstRect: SDL_Rect = MemScope().alloc()
-
-    private fun surfaceToTexture(surface: CPointer<SDL_Surface>?): Int {
-        val tex = SDL_CreateTextureFromSurface(renderer, surface)
-        SDL_FreeSurface(surface)
-        if (tex == null) {
-            return -1
-        }
-        textures.add(tex)
-        return textures.size - 1
-    }
-
-    override fun loadTexture(image: PCXImage): Int {
-        val surface = surfaceFromPcx(image)
-        return surfaceToTexture(surface)
-    }
-
-    override fun loadTexturePng(path: String): Int {
-        val surface = IMG_Load(path)
-        return surfaceToTexture(surface)
-    }
-
-    override fun loadTextureFromRaster(raster: UByteArray, width: Int, height: Int): Int {
-        val newSurface = SDL_CreateRGBSurface(0, width, height, 32, 0xffu, 0xff00u, 0xff0000u, 0xff000000u)
-        SDL_memcpy(newSurface?.pointed?.pixels, raster.refTo(0), raster.size.toULong())
-        return surfaceToTexture(newSurface)
-    }
-    override fun loadFont(fontMapping: OmfFont, textureHandle: Int): Int {
-        val fontRenderer = object: OmfFontRenderer() {
-            override val font: OmfFont
-                get() = fontMapping
-            override val scale: Float
-                get() = 2f
-
-            override fun drawCharacter(glyph: OmfFont.Glyph, character: Char, x: Int, y: Int, scale: Float) {
-                fontSrcRect.x = glyph.x
-                fontSrcRect.y = glyph.y
-                fontSrcRect.w = glyph.w
-                fontSrcRect.h = glyph.h
-                fontDstRect.x = x
-                fontDstRect.y = y
-                fontDstRect.w = (glyph.w * scale).toInt()
-                fontDstRect.h = (glyph.h * scale).toInt()
-                SDL_RenderCopy(renderer, textures[textureHandle], fontSrcRect.ptr, fontDstRect.ptr)
-            }
-        }
-        fontRenderers.add(fontRenderer)
-        return fontRenderers.size-1
-    }
-
-    private fun getActualControllerId(controllerIndex: Int): Int {
-        return joystickIdToDevice.keys.indexOf(controllerIndex)
-    }
-}
-
-fun initSDL(container: KissContainer): Boolean {
-    var success = true
-
-    if(SDL_Init(SDL_INIT_GAMECONTROLLER or SDL_INIT_VIDEO) != 0) {
-        error("SDL could not initialize! SDL_Error: ${SDL_GetError()}")
-    }else if(!container.init()) {
-        success = false
-    }
-    SDL_JoystickEventState(SDL_ENABLE)
-    return success
 }
 
 var entryPointer = 0L
@@ -409,162 +208,8 @@ fun executeCommandNative(executable: String, command: String): CPointer<PROCESS_
     return pi
 }
 
-val dosKeyMapping = mapOf(
-    SDL_SCANCODE_A to DOS_A,
-    SDL_SCANCODE_B to DOS_B,
-    SDL_SCANCODE_C to DOS_C,
-    SDL_SCANCODE_D to DOS_D,
-    SDL_SCANCODE_E to DOS_E,
-    SDL_SCANCODE_F to DOS_F,
-    SDL_SCANCODE_G to DOS_G,
-    SDL_SCANCODE_H to DOS_H,
-    SDL_SCANCODE_I to DOS_I,
-    SDL_SCANCODE_J to DOS_J,
-    SDL_SCANCODE_K to DOS_K,
-    SDL_SCANCODE_L to DOS_L,
-    SDL_SCANCODE_M to DOS_M,
-    SDL_SCANCODE_N to DOS_N,
-    SDL_SCANCODE_O to DOS_O,
-    SDL_SCANCODE_P to DOS_P,
-    SDL_SCANCODE_Q to DOS_Q,
-    SDL_SCANCODE_R to DOS_R,
-    SDL_SCANCODE_S to DOS_S,
-    SDL_SCANCODE_T to DOS_T,
-    SDL_SCANCODE_U to DOS_U,
-    SDL_SCANCODE_V to DOS_V,
-    SDL_SCANCODE_W to DOS_W,
-    SDL_SCANCODE_X to DOS_X,
-    SDL_SCANCODE_Y to DOS_Y,
-    SDL_SCANCODE_Z to DOS_Z,
-    SDL_SCANCODE_RETURN to DOS_RETURN,
-    SDL_SCANCODE_KP_ENTER to DOS_RETURN,
-    SDL_SCANCODE_1 to DOS_1,
-    SDL_SCANCODE_2 to DOS_2,
-    SDL_SCANCODE_3 to DOS_3,
-    SDL_SCANCODE_4 to DOS_4,
-    SDL_SCANCODE_5 to DOS_5,
-    SDL_SCANCODE_6 to DOS_6,
-    SDL_SCANCODE_7 to DOS_7,
-    SDL_SCANCODE_8 to DOS_8,
-    SDL_SCANCODE_9 to DOS_9,
-    SDL_SCANCODE_0 to DOS_0,
-)
-
 val trainingKeyMapping = mapOf(
     VK_F1 to VIRT_F1,
     VK_F2 to VIRT_F2,
     VK_F3 to VIRT_F3
 )
-
-val virtKeyMapping = mapOf(
-    SDL_SCANCODE_ESCAPE to VIRT_ESC,
-    SDL_SCANCODE_A to VIRT_A,
-    SDL_SCANCODE_B to VIRT_B,
-    SDL_SCANCODE_C to VIRT_C,
-    SDL_SCANCODE_D to VIRT_D,
-    SDL_SCANCODE_E to VIRT_E,
-    SDL_SCANCODE_F to VIRT_F,
-    SDL_SCANCODE_G to VIRT_G,
-    SDL_SCANCODE_H to VIRT_H,
-    SDL_SCANCODE_I to VIRT_I,
-    SDL_SCANCODE_J to VIRT_J,
-    SDL_SCANCODE_K to VIRT_K,
-    SDL_SCANCODE_L to VIRT_L,
-    SDL_SCANCODE_M to VIRT_M,
-    SDL_SCANCODE_N to VIRT_N,
-    SDL_SCANCODE_O to VIRT_O,
-    SDL_SCANCODE_P to VIRT_P,
-    SDL_SCANCODE_Q to VIRT_Q,
-    SDL_SCANCODE_R to VIRT_R,
-    SDL_SCANCODE_S to VIRT_S,
-    SDL_SCANCODE_T to VIRT_T,
-    SDL_SCANCODE_U to VIRT_U,
-    SDL_SCANCODE_V to VIRT_V,
-    SDL_SCANCODE_W to VIRT_W,
-    SDL_SCANCODE_X to VIRT_X,
-    SDL_SCANCODE_Y to VIRT_Y,
-    SDL_SCANCODE_Z to VIRT_Z,
-    SDL_SCANCODE_RETURN to VIRT_RETURN,
-    SDL_SCANCODE_KP_ENTER to VIRT_KP_ENTER,
-    SDL_SCANCODE_1 to VIRT_1,
-    SDL_SCANCODE_2 to VIRT_2,
-    SDL_SCANCODE_3 to VIRT_3,
-    SDL_SCANCODE_4 to VIRT_4,
-    SDL_SCANCODE_5 to VIRT_5,
-    SDL_SCANCODE_6 to VIRT_6,
-    SDL_SCANCODE_7 to VIRT_7,
-    SDL_SCANCODE_8 to VIRT_8,
-    SDL_SCANCODE_9 to VIRT_9,
-    SDL_SCANCODE_0 to VIRT_0,
-    SDL_SCANCODE_KP_1 to VIRT_KP_1,
-    SDL_SCANCODE_KP_2 to VIRT_KP_2,
-    SDL_SCANCODE_KP_3 to VIRT_KP_3,
-    SDL_SCANCODE_KP_4 to VIRT_KP_4,
-    SDL_SCANCODE_KP_5 to VIRT_KP_5,
-    SDL_SCANCODE_KP_6 to VIRT_KP_6,
-    SDL_SCANCODE_KP_7 to VIRT_KP_7,
-    SDL_SCANCODE_KP_8 to VIRT_KP_8,
-    SDL_SCANCODE_KP_9 to VIRT_KP_9,
-    SDL_SCANCODE_KP_0 to VIRT_KP_0,
-    SDL_SCANCODE_LEFTBRACKET to VIRT_LBRACKET,
-    SDL_SCANCODE_RIGHTBRACKET to VIRT_RBRACKET,
-    SDL_SCANCODE_BACKSLASH to VIRT_BCKSLSH,
-    SDL_SCANCODE_BACKSPACE to VIRT_BKSP,
-    SDL_SCANCODE_SPACE to VIRT_SPACE,
-    SDL_SCANCODE_TAB to VIRT_TAB,
-    SDL_SCANCODE_LSHIFT to VIRT_LSHIFT,
-    SDL_SCANCODE_LCTRL to VIRT_LCTRL,
-    SDL_SCANCODE_LALT to VIRT_LALT,
-    SDL_SCANCODE_RALT to VIRT_RALT,
-    SDL_SCANCODE_RCTRL to VIRT_RCTRL,
-    SDL_SCANCODE_RSHIFT to VIRT_RSHIFT,
-    SDL_SCANCODE_MINUS to VIRT_DASH,
-    SDL_SCANCODE_EQUALS to VIRT_EQUALS,
-    SDL_SCANCODE_INSERT to VIRT_INS,
-    SDL_SCANCODE_DELETE to VIRT_DEL,
-    SDL_SCANCODE_HOME to VIRT_HOME,
-    SDL_SCANCODE_END to VIRT_END,
-    SDL_SCANCODE_PAGEUP to VIRT_PGUP,
-    SDL_SCANCODE_PAGEDOWN to VIRT_PGDN,
-    SDL_SCANCODE_F1 to VIRT_F1,
-    SDL_SCANCODE_F2 to VIRT_F2,
-    SDL_SCANCODE_F3 to VIRT_F3,
-    SDL_SCANCODE_F4 to VIRT_F4,
-    SDL_SCANCODE_F5 to VIRT_F5,
-    SDL_SCANCODE_F6 to VIRT_F6,
-    SDL_SCANCODE_F7 to VIRT_F7,
-    SDL_SCANCODE_F8 to VIRT_F8,
-    SDL_SCANCODE_F9 to VIRT_F9,
-    SDL_SCANCODE_F10 to VIRT_F10,
-    SDL_SCANCODE_F11 to VIRT_F11,
-    SDL_SCANCODE_F12 to VIRT_F12,
-    SDL_SCANCODE_COMMA to VIRT_COMMA,
-    SDL_SCANCODE_PERIOD to VIRT_PERIOD,
-    SDL_SCANCODE_SLASH to VIRT_FWDSLSH,
-    SDL_SCANCODE_CAPSLOCK to VIRT_CAPS,
-    SDL_SCANCODE_GRAVE to VIRT_GRAV,
-    SDL_SCANCODE_SEMICOLON to VIRT_COLON,
-    SDL_SCANCODE_APOSTROPHE to VIRT_QUOT,
-    SDL_SCANCODE_UP to VIRT_UP,
-    SDL_SCANCODE_DOWN to VIRT_DOWN,
-    SDL_SCANCODE_LEFT to VIRT_LEFT,
-    SDL_SCANCODE_RIGHT to VIRT_RIGHT,
-    SDL_SCANCODE_KP_DIVIDE to VIRT_KP_DIVIDE,
-    SDL_SCANCODE_KP_MULTIPLY to VIRT_KP_MULTIPLY,
-    SDL_SCANCODE_KP_MINUS to VIRT_KP_MINUS,
-    SDL_SCANCODE_KP_ENTER to VIRT_KP_ENTER,
-    SDL_SCANCODE_KP_PLUS to VIRT_KP_PLUS,
-    SDL_SCANCODE_KP_PERIOD to VIRT_KP_PERIOD,
-    SDL_SCANCODE_NUMLOCKCLEAR to VIRT_NUM,
-    SDL_SCANCODE_PRINTSCREEN to VIRT_PRNTSCRN,
-    SDL_SCANCODE_SCROLLLOCK to VIRT_SCRLCK,
-    SDL_SCANCODE_PAUSE to VIRT_PAUSE,
-)
-
-actual fun getDosboxScancodeMap(): Map<Int, Int> {
-    return virtKeyMapping.entries.associateBy({ it.value }) { it.value }
-}
-
-actual fun getDosboxStagingScancodeMap(): Map<Int, Int> {
-    return virtKeyMapping.entries.associateBy({ it.value }) { it.key.toInt() }
-}
