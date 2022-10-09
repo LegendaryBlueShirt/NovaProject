@@ -1,0 +1,22 @@
+1 VERSIONINFO
+FILEVERSION     0,1,0,0
+PRODUCTVERSION  0,1,0,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "CompanyName", "LegendaryBlueShirt"
+      VALUE "FileDescription", "Nova - OMF2097 Frontend for DOSBox"
+      VALUE "FileVersion", "0.1"
+      VALUE "InternalName", "Nova"
+      VALUE "OriginalFilename", "nova.exe"
+      VALUE "ProductName", "Nova Project"
+      VALUE "ProductVersion", "0.1"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1252
+  END
+END

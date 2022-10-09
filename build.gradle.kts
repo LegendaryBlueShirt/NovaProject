@@ -10,6 +10,8 @@ repositories {
 }
 
 val nativelibs = "C:\\mingw64"
+val konanUserDir = System.getenv("KONAN_DATA_DIR") ?: "${System.getProperty("user.home")}\\.konan"
+val resFile = file("$buildDir/konan/res/Nova.res")
 
 kotlin {
     val hostOs = System.getProperty("os.name")
@@ -25,7 +27,8 @@ kotlin {
         binaries {
             executable("nova") {
                 entryPoint = "com.justnopoint.nova.main"
-                linkerOpts = mutableListOf("-L${nativelibs}\\lib",
+                linkerOpts = mutableListOf("$resFile",
+                    "-L${nativelibs}\\lib",
                     "-L${nativelibs}\\bin", "-L${project.projectDir}\\native\\lib",
                     "-lmingw32", "-lSDL2main", "-lSDL2", "-lSDL2_image",
                     "-mwindows")
@@ -88,5 +91,22 @@ tasks {
         includeEmptyDirs = false
         dependsOn("nativeProcessResources")
         dependsOn("linkNovaDebugExecutableNative")
+    }
+
+    val windowsResources = register("winRes", Exec::class) {
+        val rcFile = file("Nova.rc")
+        val path = System.getenv("PATH")
+        val windresDir = "$konanUserDir\\dependencies\\msys2-mingw-w64-x86_64-clang-llvm-lld-compiler_rt-8.0.1\\bin"
+        executable("windres")
+        args("-O", "coff", "-o", resFile, rcFile)
+        environment("PATH", "$windresDir;$path")
+
+        inputs.file(rcFile)
+        outputs.file(resFile)
+    }
+
+    matching{ it.name == "linkNovaDebugExecutableNative" }.all{
+        dependsOn("winRes")
+        inputs.file(resFile)
     }
 }
