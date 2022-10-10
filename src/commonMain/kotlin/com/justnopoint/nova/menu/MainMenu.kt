@@ -31,6 +31,7 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
     fun gameEnd() {
         idleCounter = 0
         currentState = State.MENU
+        gameMenu.reset()
     }
 
     private fun canPlay(): Boolean {

@@ -1,6 +1,3 @@
-import org.jetbrains.kotlin.scripting.definitions.StandardScriptDefinition.platform
-import org.jetbrains.kotlin.types.error.ErrorModuleDescriptor.platform
-
 plugins {
     kotlin("multiplatform") version "1.7.20"
 }
@@ -98,14 +95,14 @@ kotlin {
 }
 
 tasks {
-    val runWithRes = register("runWithRes", Exec::class) {
+    register("runWithRes", Exec::class) {
         dependsOn("copyRes")
 
         workingDir("$buildDir/nova")
         commandLine("cmd", "/c", "nova.exe")
     }
 
-    val copyRes = register("copyRes", Copy::class) {
+    register("copyRes", Copy::class) {
         group = "other"
         description = "Copies the release exe and resources into one directory"
 
@@ -127,7 +124,7 @@ tasks {
         dependsOn("linkNovaDebugExecutableNative")
     }
 
-    val windowsResources = register("winRes", Exec::class) {
+    register("winRes", Exec::class) {
         val rcFile = file("Nova.rc")
         val path = System.getenv("PATH")
         val windresDir = "$konanUserDir\\dependencies\\msys2-mingw-w64-x86_64-clang-llvm-lld-compiler_rt-8.0.1\\bin"

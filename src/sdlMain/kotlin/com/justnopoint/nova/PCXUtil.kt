@@ -11,6 +11,7 @@ fun surfaceFromPcx(path: String): CPointer<SDL_Surface>? = memScoped {
     return null
 }
 
+@OptIn(ExperimentalUnsignedTypes::class)
 fun surfaceFromPcx(pcx: PCXImage): CPointer<SDL_Surface>? = memScoped {
     val newSurface = SDL_CreateRGBSurface(0, pcx.width, pcx.height, 8, 0u, 0u, 0u, 0u)
     val pcxPalette = allocArray<SDL_Color>(256)

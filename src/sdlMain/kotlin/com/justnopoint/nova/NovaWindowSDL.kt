@@ -187,6 +187,7 @@ abstract class NovaWindowSDL: NovaWindow {
         return surfaceToTexture(surface)
     }
 
+    @OptIn(ExperimentalUnsignedTypes::class)
     override fun loadTextureFromRaster(raster: UByteArray, width: Int, height: Int): Int {
         val newSurface = SDL_CreateRGBSurface(0, width, height, 32, 0xffu, 0xff00u, 0xff0000u, 0xff000000u)
         SDL_memcpy(newSurface?.pointed?.pixels, raster.refTo(0), raster.size.toULong())

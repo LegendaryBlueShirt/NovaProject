@@ -2,8 +2,6 @@ package com.justnopoint.nova
 
 import okio.FileSystem
 import okio.Path.Companion.toPath
-import okio.buffer
-import okio.use
 
 class OmfFont(fontMap: String) {
     data class Glyph(val x:Int,val y:Int,val w:Int,val h:Int)

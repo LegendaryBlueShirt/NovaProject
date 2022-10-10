@@ -129,6 +129,7 @@ class NovaProject {
         }
     }
 
+    @OptIn(ExperimentalUnsignedTypes::class)
     private fun onStart(window: NovaWindow) {
         this.window = window
         val background = loadPcx("NETARENA.PCX".toPath())?: error("Couldn't load background NETARENA.PCX")
@@ -210,6 +211,7 @@ interface NovaWindow {
     fun loadFont(fontMapping: OmfFont, textureHandle: Int): Int
     fun loadTexture(image: PCXImage): Int
     fun loadTexturePng(path: String): Int
+    @OptIn(ExperimentalUnsignedTypes::class)
     fun loadTextureFromRaster(raster: UByteArray, width: Int, height: Int): Int
     fun showImage(textureHandle: Int, x: Int, y: Int)
 }
