@@ -108,7 +108,7 @@ class NovaProject {
         } else {
             mode
         }
-        val hasCustomConf = FileSystem.SYSTEM.exists(novaConf.confPath.toPath())
+        val hasCustomConf = novaConf.confPath.isNotBlank() && FileSystem.SYSTEM.exists(novaConf.confPath.toPath())
         val args = listOfNotNull(
             exe,
             if(userconf) "-userconf" else null,
