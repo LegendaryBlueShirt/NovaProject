@@ -18,8 +18,9 @@ abstract class NovaWindowSDL: NovaWindow {
 
     //* Joystick Management *//
     private var joyEnabled = false
-    private val joystickDevices = mutableMapOf<Int, CPointer<SDL_Joystick>>()
-    private val joystickIdToDevice = mutableMapOf<Int, Int>()
+    //private val joystickDevices = mutableMapOf<Int, CPointer<SDL_Joystick>>()
+    //private val joystickIdToDevice = mutableMapOf<Int, Int>()
+    private val joysticks = mutableListOf<Joystick>()
 
     open fun init(): Boolean {
         if(SDL_Init(SDL_INIT_GAMECONTROLLER or SDL_INIT_VIDEO) != 0) {
@@ -27,6 +28,7 @@ abstract class NovaWindowSDL: NovaWindow {
         }
 
         SDL_JoystickEventState(SDL_ENABLE)
+        SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS,"1")
 
         if((IMG_Init(IMG_INIT_PNG.toInt()) and IMG_INIT_PNG.toInt()) == 0) {
             error("SDL_Image could not initialize! SDL_Error: ${IMG_GetError?.invoke()}")
@@ -52,67 +54,77 @@ abstract class NovaWindowSDL: NovaWindow {
                         project.handleInput(input)
                     }
                 }
+                SDL_JOYBUTTONUP,
                 SDL_JOYBUTTONDOWN -> {
-                    val controller = getActualControllerId(event.jbutton.which)
-                    val button = event.jbutton.button
-                    val input = ButtonMap(type = ControlType.BUTTON, controlId = controller, axisId = button.toInt(), name = "Joy $controller Button $button")
-                    project.handleInput(input)
+                    val instanceId = event.jbutton.which
+                    joysticks.find { it.getCurrentId() == instanceId }?.updateControllerButton(event)
                 }
                 SDL_JOYAXISMOTION -> {
-                    val value = event.jaxis.value
-                    val dir = if(value < -3200) 0 else if(value > 3200) 1 else 2
-                    if(dir < 2) {
-                        val controller = getActualControllerId(event.jaxis.which)
-                        val axis = event.jaxis.axis
-                        val input = ButtonMap(
-                            type = ControlType.AXIS,
-                            controlId = controller,
-                            axisId = axis.toInt(),
-                            direction = dir,
-                            name = "Joy $controller Axis $axis ${if(dir == 0) "-" else "+"}"
-                        )
-                        project.handleInput(input)
-                    }
+                    val instanceId = event.jaxis.which
+                    joysticks.find { it.getCurrentId() == instanceId }?.updateControllerAxis(event)
                 }
                 SDL_JOYHATMOTION -> {
-                    val dir = event.jhat.value.toInt()
-                    if(dir != 0) {
-                        val controller = getActualControllerId(event.jhat.which)
-                        val hatId = event.jhat.hat
-                        val input = ButtonMap(
-                            type = ControlType.HAT,
-                            controlId = controller,
-                            axisId = hatId.toInt(),
-                            direction = dir,
-                            name = "Joy $controller Hat $hatId $dir"
-                        )
-                        project.handleInput(input)
-                    }
+                    val instanceId = event.jhat.which
+                    joysticks.find { it.getCurrentId() == instanceId }?.updateControllerHat(event)
                 }
                 SDL_JOYDEVICEADDED -> {
                     if(joyEnabled) {
-                        println("Adding joystick ${event.jdevice.which}")
                         val id = event.jdevice.which
-                        SDL_JoystickOpen(id)?.let {
-                            joystickDevices[id] = it
-                            joystickIdToDevice[SDL_JoystickGetDeviceInstanceID(id)] = id
+                        Joystick.open(id)?.let {
+                            joysticks.add(it)
                         }
                     }
                 }
                 SDL_JOYDEVICEREMOVED -> {
                     if(joyEnabled) {
-                        println("Removing joystick ${event.jdevice.which}")
                         val instanceId = event.jdevice.which
-                        val deviceId = joystickIdToDevice[instanceId]?: continue
-                        joystickDevices[deviceId]?.let {
-                            if (SDL_JoystickGetAttached(it) != 0u) {
-                                SDL_JoystickClose(it)
-                            }
-                            joystickDevices.remove(deviceId)
-                            joystickIdToDevice.remove(instanceId)
+                        joysticks.find { it.getCurrentId() == instanceId }?.let {
+                            it.close()
+                            joysticks.remove(it)
                         }
                     }
                 }
+            }
+        }
+        joysticks.forEach {
+            if(joyEnabled) {
+                while(it.events.isNotEmpty()) {
+                    val event = it.events.removeFirst()
+                    val controller = it.getCurrentId()
+                    when(event.type) {
+                        ControlType.AXIS -> {
+                            val input = ButtonMap(
+                                type = ControlType.AXIS,
+                                controlId = controller,
+                                axisId = event.id,
+                                direction = event.direction,
+                                name = "Joy $controller Axis ${event.id} ${if(event.direction == -1) "-" else "+"}"
+                            )
+                            project.handleInput(input, event.release)
+                        }
+                        ControlType.HAT -> {
+                            val input = ButtonMap(
+                                type = ControlType.HAT,
+                                controlId = controller,
+                                axisId = event.id,
+                                direction = event.direction,
+                                name = "Joy $controller Hat ${event.id} ${event.direction}"
+                            )
+                            project.handleInput(input, event.release)
+                        }
+                        ControlType.BUTTON -> {
+                            val input = ButtonMap(
+                                type = ControlType.BUTTON,
+                                controlId = controller,
+                                axisId = event.id,
+                                name = "Joy $controller Button ${event.id}")
+                            project.handleInput(input, event.release)
+                        }
+                        else -> {}
+                    }
+                }
+            } else {
+                it.events.clear()
             }
         }
     }
@@ -141,27 +153,6 @@ abstract class NovaWindowSDL: NovaWindow {
 
     override fun setJoystickEnabled(joyEnabled: Boolean) {
         this.joyEnabled = joyEnabled
-        if(joyEnabled) {
-            val joys = SDL_NumJoysticks()
-            (0 until joys).forEach { id ->
-                SDL_JoystickOpen(id)?.let {
-                    joystickDevices[id] = it
-                    joystickIdToDevice[SDL_JoystickGetDeviceInstanceID(id)] = id
-                }
-            }
-        } else {
-            joystickDevices.forEach { (_, joy) ->
-                if (SDL_JoystickGetAttached(joy) != 0u) {
-                    SDL_JoystickClose(joy)
-                }
-            }
-            joystickIdToDevice.clear()
-            joystickDevices.clear()
-        }
-    }
-
-    private fun getActualControllerId(controllerIndex: Int): Int {
-        return joystickIdToDevice.keys.indexOf(controllerIndex)
     }
 
     val fontSrcRect: SDL_Rect = MemScope().alloc()

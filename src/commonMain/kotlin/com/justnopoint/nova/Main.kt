@@ -30,6 +30,8 @@ class NovaProject {
     private var startFrameTime = 0L
     private val millisPerFrame = 1000.0 / 60
 
+    private var gameRunning = false
+
     fun runLoop(window: NovaWindow) {
         onStart(window)
         startFrameTime = getTimeMillis()
@@ -40,7 +42,9 @@ class NovaProject {
             currentFrameTime = getTimeMillis()
             nextFrameTime = (startFrameTime + (frameCount*millisPerFrame).toLong())
             if(currentFrameTime > nextFrameTime) {
-                renderFrame()
+                if(!gameRunning) {
+                    renderFrame()
+                }
                 frameCount++
                 if(frameCount < 0) {
                     frameCount = 0
@@ -54,8 +58,14 @@ class NovaProject {
         quit = true
     }
 
-    fun handleInput(input: ButtonMap) {
-        mainMenu.handleInput(input)
+    fun handleInput(input: ButtonMap, release: Boolean = false) {
+        if(!gameRunning) {
+            if(!release) {
+                mainMenu.handleInput(input)
+            }
+        } else {
+            window.sendKeyEvent(input, release)
+        }
     }
 
     fun startVs() {
@@ -110,6 +120,7 @@ class NovaProject {
         )
         val command = args.joinToString(" ")
         window.executeCommand(executable = novaConf.dosboxPath, command = command)
+        gameRunning = true
         //This doesn't work for DOSBox staging! AAAAAAAAAAA
 //        getFileSystem().openReadOnly("stdout.txt".toPath()).use {handle ->
 //            handle.source().buffer().use {buffer ->
@@ -119,6 +130,7 @@ class NovaProject {
     }
 
     fun dosBoxFinished() {
+        gameRunning = false
         mainMenu.gameEnd()
     }
 
@@ -214,6 +226,7 @@ interface NovaWindow {
     @OptIn(ExperimentalUnsignedTypes::class)
     fun loadTextureFromRaster(raster: UByteArray, width: Int, height: Int): Int
     fun showImage(textureHandle: Int, x: Int, y: Int)
+    fun sendKeyEvent(mappedButton: ButtonMap, up: Boolean)
 }
 
 enum class ControlType {
@@ -228,23 +241,6 @@ data class ButtonMap(
     val axisId: Int = -1,
     val direction: Int = 0
 )
-
-fun ButtonMap.dosboxMap(scancodeMap: Map<Int, Int>): String {
-    return when(type) {
-        ControlType.KEY -> {
-            "key ${scancodeMap[scancode]}"
-        }
-        ControlType.AXIS -> {
-            "stick_$controlId axis $axisId $direction"
-        }
-        ControlType.HAT -> {
-            "stick_$controlId hat $axisId $direction"
-        }
-        ControlType.BUTTON -> {
-            "stick_$controlId button $axisId"
-        }
-    }
-}
 
 fun String.toButtonMap(): ButtonMap {
     val nodes = split(":")

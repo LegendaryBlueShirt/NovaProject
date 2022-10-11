@@ -20,12 +20,12 @@ class NovaConf(val location: Path) {
     fun checkErrors() {
         val currentErrors = mutableListOf<String>()
         val boundInputs = getBoundInputs()
-        if(isUsingHat()) {
-            val devices = boundInputs.filter { it.type != ControlType.KEY }.map { it.controlId }.distinct()
-            if(devices.size > 1) {
-                currentErrors.add("Hat not supported with two joysticks")
-            }
-        }
+//        if(isUsingHat()) {
+//            val devices = boundInputs.filter { it.type != ControlType.KEY }.map { it.controlId }.distinct()
+//            if(devices.size > 1) {
+//                currentErrors.add("Hat not supported with two joysticks")
+//            }
+//        }
         if(!joyEnabled) {
             val joyInputs = boundInputs.filter { it.type != ControlType.KEY }
             if(joyInputs.size > 1) {
