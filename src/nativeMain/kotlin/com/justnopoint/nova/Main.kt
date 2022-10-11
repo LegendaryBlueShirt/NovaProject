@@ -109,8 +109,8 @@ class Win32Container: NovaWindowSDL() {
         return selectedDirectory?.toKStringFromUtf16()?:""
     }
 
-    override fun showFileChooser(start: String, prompt: String): String {
-        val filters = MemScope().allocArrayOf("*.exe".wcstr.getPointer(MemScope()))
+    override fun showFileChooser(start: String, prompt: String, filter: String, filterDesc: String): String {
+        val filters = MemScope().allocArrayOf(filter.wcstr.getPointer(MemScope()))
         val selectedFile: CPointer<wchar_tVar>? =
             tinyfd_openFileDialogW(
                 aTitle = prompt.wcstr,
@@ -118,7 +118,7 @@ class Win32Container: NovaWindowSDL() {
                 aAllowMultipleSelects = 0,
                 aFilterPatterns = filters,
                 aNumOfFilterPatterns = 1,
-                aSingleFilterDescription = "executable files".wcstr
+                aSingleFilterDescription = filterDesc.wcstr
             )
         return selectedFile?.toKStringFromUtf16()?:""
     }

@@ -7,6 +7,7 @@ import okio.Path.Companion.toPath
 class NovaConf(val location: Path) {
     var dosboxPath = ""
     var omfPath = ""
+    var confPath = ""
     val p1Config = getDefaultP1Config()
     val p2Config = getDefaultP2Config()
     var joyEnabled = true
@@ -53,6 +54,11 @@ class NovaConf(val location: Path) {
         } else if(!fs.metadata(pathToDosbox).isRegularFile) {
             currentErrors.add("DOSBox location is not a file!")
         }
+
+        if(confPath.isNotBlank() && !fs.exists(confPath.toPath())) {
+            currentErrors.add("Custom configuration file is missing and will be ignored!")
+        }
+
         errors = currentErrors
     }
 
@@ -80,6 +86,7 @@ class NovaConf(val location: Path) {
             saveReplays = (readUtf8Line()?:"false").toBoolean()
             userConf = (readUtf8Line()?:"false").toBoolean()
             attract = (readUtf8Line()?:"false").toBoolean()
+            confPath = readUtf8Line()?:""
         }
     }
 
@@ -94,6 +101,7 @@ class NovaConf(val location: Path) {
             writeUtf8("$saveReplays\n")
             writeUtf8("$userConf\n")
             writeUtf8("$attract\n")
+            writeUtf8("$confPath\n")
         }
     }
 

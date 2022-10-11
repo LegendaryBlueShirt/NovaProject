@@ -7,7 +7,7 @@ import com.justnopoint.nova.NovaWindow
 class ConfigMenu(project: NovaProject) : NovaMenu(project) {
     private var selectedIndex = 0
     enum class State {
-        MENU, NOVACONF, OMFCONF
+        MENU, NOVACONF, OMFCONF, DOSBOXCONF
     }
     var currentState = State.MENU
 
@@ -30,46 +30,57 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
     override fun render(window: NovaWindow, frame: Int) {
         when(currentState) {
             State.MENU -> {
-                if(selectedIndex < 0) selectedIndex = 1
-                if(selectedIndex > 1) selectedIndex = 0
+                if(selectedIndex < 0) selectedIndex = 2
+                if(selectedIndex > 2) selectedIndex = 0
 
                 renderText(window, "Nova Project Settings", 18 * scale, 20 * scale, selectedIndex == 0, frame)
                 renderText(window, "OMF2097 Settings", 18 * scale, 33 * scale, selectedIndex == 1, frame, !canConfigOmf())
+                renderText(window, "DOSBox Settings", 18 * scale, 46 * scale, selectedIndex == 2, frame)
 
                 when(selectedIndex) {
                     0 -> window.showText("Change settings for this app.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
                     1 -> window.showText("Change settings for the game.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
+                    2 -> window.showText("Change settings for DOSBox.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
                 }
             }
             State.NOVACONF -> {
-                if(selectedIndex < 0) selectedIndex = 6
-                if(selectedIndex > 6) selectedIndex = 0
+                if(selectedIndex < 0) selectedIndex = 4
+                if(selectedIndex > 4) selectedIndex = 0
 
                 renderText(window, "DOSBox location", 18 * scale, 20 * scale, selectedIndex == 0, frame)
-                renderText(window, "Is DOSBox Staging?", 18 * scale, 46 * scale, selectedIndex == 1, frame)
-                renderText(window, "OMF location", 18 * scale, 59 * scale, selectedIndex == 2, frame)
-                renderText(window, "Joystick Support", 18 * scale, 85 * scale, selectedIndex == 3, frame)
-                renderText(window, "Use My DOSBox Settings", 18 * scale, 98 * scale, selectedIndex == 4, frame)
-                renderText(window, "Save Replays", 18 * scale, 111 * scale, selectedIndex == 5, frame)
-                renderText(window, "Attract Mode", 18 * scale, 124 * scale, selectedIndex == 6, frame)
+                renderText(window, "OMF location", 18 * scale, 46 * scale, selectedIndex == 1, frame)
+                renderText(window, "Joystick Support", 18 * scale, 72 * scale, selectedIndex == 2, frame)
+                renderText(window, "Save Replays", 18 * scale, 85 * scale, selectedIndex == 3, frame)
+                renderText(window, "Attract Mode", 18 * scale, 98 * scale, selectedIndex == 4, frame)
 
                 window.showText(project.novaConf.dosboxPath.reversed(), MenuFonts.smallFont_yellow,302*scale, 33*scale, true)
-                renderReversed(window,
-                    if(project.novaConf.stagingCompat) "Yes" else "No", 302 * scale, 46 * scale, selectedIndex == 1, frame)
-                window.showText(project.novaConf.omfPath.reversed(), MenuFonts.smallFont_yellow,302*scale, 72*scale, true)
-                renderReversed(window, if(project.novaConf.joyEnabled) "On" else "Off", 302 * scale, 85 * scale, selectedIndex == 3, frame)
-                renderReversed(window, if(project.novaConf.userConf) "Yes" else "No", 302 * scale, 98 * scale, selectedIndex == 4, frame)
-                renderReversed(window, if(project.novaConf.saveReplays) "On" else "Off", 302 * scale, 111 * scale, selectedIndex == 5, frame)
-                renderReversed(window, if(project.novaConf.attract) "On" else "Off", 302 * scale, 124 * scale, selectedIndex == 6, frame)
+                window.showText(project.novaConf.omfPath.reversed(), MenuFonts.smallFont_yellow,302*scale, 59*scale, true)
+                renderReversed(window, if(project.novaConf.joyEnabled) "On" else "Off", 302 * scale, 72 * scale, selectedIndex == 3, frame)
+                renderReversed(window, if(project.novaConf.saveReplays) "On" else "Off", 302 * scale, 85 * scale, selectedIndex == 5, frame)
+                renderReversed(window, if(project.novaConf.attract) "On" else "Off", 302 * scale, 98 * scale, selectedIndex == 6, frame)
 
                 when(selectedIndex) {
                     0 -> window.showText("Set the location for DOSBox", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
-                    1 -> window.showText("Turn this on if you're having an issue with keyboard controls.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
-                    2 -> window.showText("Set the location for OMF2097", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
-                    3 -> window.showText("Turn this off if you are using a program like AntiMicro to map controllers to the keyboard.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
-                    4 -> window.showText("Turn this on to use your current dosbox settings if they are not default.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
-                    5 -> window.showText("Turn this on to automatically get REC files after every match.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
-                    6 -> window.showText("Turn this on to automatically play random replays when idle.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
+                    1 -> window.showText("Set the location for OMF2097", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
+                    2 -> window.showText("Turn this off if you are using a program like AntiMicro to map controllers to the\nkeyboard.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
+                    3 -> window.showText("Turn this on to automatically get REC files after every match.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
+                    4 -> window.showText("Turn this on to automatically play random replays when idle.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
+                }
+            }
+            State.DOSBOXCONF -> {
+                renderText(window, "Is DOSBox Staging?", 18 * scale, 20 * scale, selectedIndex == 0, frame)
+                renderText(window, "Use My DOSBox Settings", 18 * scale, 33 * scale, selectedIndex == 1, frame)
+                renderText(window, "Custom DOSBox Conf Path", 18 * scale, 46 * scale, selectedIndex == 2, frame)
+
+                renderReversed(window,
+                    if(project.novaConf.stagingCompat) "Yes" else "No", 302 * scale, 20 * scale, selectedIndex == 0, frame)
+                renderReversed(window, if(project.novaConf.userConf) "Yes" else "No", 302 * scale, 33 * scale, selectedIndex == 1, frame)
+                window.showText(project.novaConf.confPath.reversed(), MenuFonts.smallFont_yellow,302*scale, 59*scale, true)
+
+                when(selectedIndex) {
+                    0 -> window.showText("Turn this on if you're having an issue with keyboard controls.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
+                    1 -> window.showText("Turn this on to load DOSBox settings from your user profile. (-userconf parameter)", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
+                    2 -> window.showText("If you have a specific DOSBox configuration for OMF, specify it here.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
                 }
             }
             State.OMFCONF -> {
@@ -112,18 +123,25 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
                 project.novaConf.apply {
                     when (selectedIndex) {
                         0 -> dosboxPath =
-                            project.showFileChooser(dosboxPath.ifEmpty { ".\\DOSBox.exe" }, "Select DOSBox.exe")
-                        1 -> stagingCompat = !stagingCompat
-                        2 -> omfPath = project.showFolderChooser(omfPath.ifEmpty { "." }, "Select OMF2097 Location")
-                        3 -> {
+                            project.showFileChooser(dosboxPath.ifEmpty { ".\\DOSBox.exe" }, "Select DOSBox.exe", "*.exe", "executable files")
+                        1 -> omfPath = project.showFolderChooser(omfPath.ifEmpty { "." }, "Select OMF2097 Location")
+                        2 -> {
                             joyEnabled = !joyEnabled
                             project.setJoystickEnabled(joyEnabled)
                         }
-                        4 -> userConf = !userConf
-                        5 -> saveReplays = !saveReplays
-                        6 -> attract = !attract
+                        3 -> saveReplays = !saveReplays
+                        4 -> attract = !attract
                     }
                     checkErrors()
+                }
+            }
+            State.DOSBOXCONF -> {
+                project.novaConf.apply {
+                    when(selectedIndex) {
+                        0 -> stagingCompat = !stagingCompat
+                        1 -> userConf = !userConf
+                        2 -> confPath = project.showFileChooser(confPath.ifEmpty { ".\\*.conf" }, "Select DOSBox configuration", "*.conf", "DOSBox configuration file")
+                    }
                 }
             }
             State.OMFCONF -> {
@@ -157,6 +175,7 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
                     return false
                 }
             }
+            2 -> currentState = State.DOSBOXCONF
         }
         return true
     }

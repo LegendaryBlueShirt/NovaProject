@@ -108,9 +108,11 @@ class NovaProject {
         } else {
             mode
         }
+        val hasCustomConf = FileSystem.SYSTEM.exists(novaConf.confPath.toPath())
         val args = listOfNotNull(
             exe,
             if(userconf) "-userconf" else null,
+            if(hasCustomConf) "-conf \"${novaConf.confPath}\"" else null,
             "-noconsole",
             "-conf \"$dosboxConfPath\"",
             "-c \"mount c ${novaConf.omfPath}\"",
@@ -195,8 +197,8 @@ class NovaProject {
         novaConf.save()
     }
 
-    fun showFileChooser(start: String, prompt: String): String {
-        return window.showFileChooser(start, prompt)
+    fun showFileChooser(start: String, prompt: String, filter: String, filterDesc: String): String {
+        return window.showFileChooser(start, prompt, filter, filterDesc)
     }
 
     fun showFolderChooser(start: String, prompt: String): String {
@@ -215,7 +217,7 @@ interface NovaWindow {
     //fun showText(textLine: String)
     fun showText(textLine: String, font: Int, x: Int, y: Int, reverse: Boolean = false)
     fun executeCommand(executable: String, command: String)
-    fun showFileChooser(start: String, prompt: String): String
+    fun showFileChooser(start: String, prompt: String, filter: String, filterDesc: String): String
     fun showFolderChooser(start: String, prompt: String): String
     fun setJoystickEnabled(joyEnabled: Boolean)
     fun destroy()
