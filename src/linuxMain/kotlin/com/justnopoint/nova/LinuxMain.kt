@@ -30,3 +30,13 @@ class LinuxContainer: NovaWindowSDL() {
         TODO("Not yet implemented")
     }
 }
+
+actual fun readMemoryShort(address: Long): UShort {
+    TODO()
+}
+actual fun readMemoryInt(address: Long): UInt {
+    TODO()
+}
+actual fun writeMemoryInt(address: Long, value: UInt) {}
+actual fun writeMemoryShort(address: Long, value: UShort) {}
+actual fun writeMemoryByte(address: Long, value: UByte) {}

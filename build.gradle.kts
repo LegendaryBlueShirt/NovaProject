@@ -9,29 +9,56 @@ repositories {
     mavenCentral()
 }
 
-val nativelibs = "C:\\mingw64"
+var nativelibs = ""
 val konanUserDir = System.getenv("KONAN_DATA_DIR") ?: "${System.getProperty("user.home")}\\.konan"
 val resFile = file("$buildDir/konan/res/Nova.res")
 
 kotlin {
-//    val hostOs = System.getProperty("os.name")
-//    val isMingwX64 = hostOs.startsWith("Windows")
-//    val nativeTarget = when {
+    val hostOs = System.getProperty("os.name")
+    val isMingwX64 = hostOs.startsWith("Windows")
+    nativelibs = when {
 //        hostOs == "Mac OS X" -> macosX64("native")
-//        hostOs == "Linux" -> linuxX64("native")
-//        isMingwX64 -> mingwX64("native")
-//        else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
-//    }
+        hostOs == "Linux" -> "/usr"
+        isMingwX64 -> "C:\\mingw64"
+        else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
+    }
 
     linuxX64("linux").apply {
         binaries {
             executable("nova") {
                 entryPoint = "com.justnopoint.nova.main"
-                linkerOpts = mutableListOf("$resFile",
+                linkerOpts = mutableListOf(
+                    "-L${nativelibs}/lib/x86_64-linux-gnu/cmake",
+                    "-L${nativelibs}/lib/x86_64-linux-gnu", "-L${project.projectDir}/native/lib",
+                    "-lX11",
+                    "-lSDL2", "-lSDL2_image")
+            }
+        }
+        compilations.getByName("main").cinterops {
+            val SDL by creating {
+                includeDirs(
+                    "${nativelibs}/include/x86_64-linux_gnu",
+                    "${nativelibs}/include"
+                )
+                extraOpts = mutableListOf(
+                    "-libraryPath", "${nativelibs}/lib/x86_64-linux-gnu/cmake",
+                    "-libraryPath", "${nativelibs}/lib/x86_64-linux-gnu"
+                )
+            }
+        }
+    }
+
+    mingwX64("native").apply {
+        binaries {
+            executable("nova") {
+                entryPoint = "com.justnopoint.nova.main"
+                linkerOpts = mutableListOf(
+                    "$resFile",
                     "-L${nativelibs}\\lib",
                     "-L${nativelibs}\\bin", "-L${project.projectDir}\\native\\lib",
-                    "-lX11",
-                    "-lmingw32", "-lSDL2main", "-lSDL2", "-lSDL2_image")
+                    "-lmingw32", "-lSDL2main", "-lSDL2", "-lSDL2_image",
+                    "-mwindows"
+                )
             }
         }
         compilations.getByName("main").cinterops {
@@ -44,37 +71,18 @@ kotlin {
                     "-libraryPath", "${nativelibs}\\bin"
                 )
             }
-        }
-    }
-
-    mingwX64("native").apply {
-        binaries {
-            executable("nova") {
-                entryPoint = "com.justnopoint.nova.main"
-                linkerOpts = mutableListOf("$resFile",
-                    "-L${nativelibs}\\lib",
-                    "-L${nativelibs}\\bin", "-L${project.projectDir}\\native\\lib",
-                    "-lmingw32", "-lSDL2main", "-lSDL2", "-lSDL2_image",
-                    "-mwindows")
-            }
-        }
-        compilations.getByName("main").cinterops {
-            val SDL by creating {
-                includeDirs {
-                    allHeaders("${nativelibs}\\include")
-                }
-                extraOpts = mutableListOf("-libraryPath", "${nativelibs}\\lib",
-                    "-libraryPath", "${nativelibs}\\bin")
-            }
             val tinyfiledialogs by creating {
                 includeDirs {
                     allHeaders("${nativelibs}\\include", "${project.projectDir}\\native\\include")
                 }
-                extraOpts = mutableListOf("-libraryPath", "${nativelibs}\\lib",
-                    "-libraryPath", "${project.projectDir}\\native\\lib")
+                extraOpts = mutableListOf(
+                    "-libraryPath", "${nativelibs}\\lib",
+                    "-libraryPath", "${project.projectDir}\\native\\lib"
+                )
             }
         }
     }
+
     sourceSets {
         val sdlMain by creating {
             dependsOn(commonMain.get())
@@ -95,14 +103,21 @@ kotlin {
 }
 
 tasks {
-    register("runWithRes", Exec::class) {
-        dependsOn("copyRes")
+    register("runWinWithRes", Exec::class) {
+        dependsOn("copyWinRes")
 
         workingDir("$buildDir/nova")
         commandLine("cmd", "/c", "nova.exe")
     }
 
-    register("copyRes", Copy::class) {
+    register("runLinWithRes", Exec::class) {
+        dependsOn("copyLinRes")
+
+        workingDir("$buildDir/nova")
+        commandLine("./nova.kexe")
+    }
+
+    register("copyWinRes", Copy::class) {
         group = "other"
         description = "Copies the release exe and resources into one directory"
 
@@ -122,6 +137,24 @@ tasks {
         includeEmptyDirs = false
         dependsOn("nativeProcessResources")
         dependsOn("linkNovaDebugExecutableNative")
+    }
+
+    register("copyLinRes", Copy::class) {
+        group = "other"
+        description = "Copies the release exe and resources into one directory"
+
+        from("$buildDir/processedResources/linux/main") {
+            include("**/*")
+        }
+
+        from("$buildDir/bin/linux/novaDebugExecutable") {
+            include("**/*")
+        }
+
+        into("$buildDir/nova")
+        includeEmptyDirs = false
+        dependsOn("linuxProcessResources")
+        dependsOn("linkNovaDebugExecutableLinux")
     }
 
     register("winRes", Exec::class) {
