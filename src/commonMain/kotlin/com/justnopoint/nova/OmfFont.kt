@@ -48,13 +48,18 @@ abstract class OmfFontRenderer {
 
     fun drawText(message: String, x: Int, y: Int, reverse: Boolean) {
         var xPosition = x
+        var yPosition = y
         message.forEach { c ->
             val glyph = font.getGlyph(c)
+            if(c == '\n') {
+                xPosition = x
+                yPosition += ((glyph.h + 1) * scale).toInt()
+            }
             if(reverse) {
                 xPosition -= (glyph.w * scale).toInt()
-                drawCharacter(glyph, c, xPosition, y, scale)
+                drawCharacter(glyph, c, xPosition, yPosition, scale)
             } else {
-                drawCharacter(glyph, c, xPosition, y, scale)
+                drawCharacter(glyph, c, xPosition, yPosition, scale)
                 xPosition += (glyph.w * scale).toInt()
             }
         }

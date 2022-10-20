@@ -4,9 +4,10 @@ import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
 
-class NovaConf(val location: Path) {
+class NovaConf(private val location: Path) {
     var dosboxPath = ""
     var omfPath = ""
+    var confPath = ""
     val p1Config = getDefaultP1Config()
     val p2Config = getDefaultP2Config()
     var joyEnabled = true
@@ -20,12 +21,6 @@ class NovaConf(val location: Path) {
     fun checkErrors() {
         val currentErrors = mutableListOf<String>()
         val boundInputs = getBoundInputs()
-        if(isUsingHat()) {
-            val devices = boundInputs.filter { it.type != ControlType.KEY }.map { it.controlId }.distinct()
-            if(devices.size > 1) {
-                currentErrors.add("Hat not supported with two joysticks")
-            }
-        }
         if(!joyEnabled) {
             val joyInputs = boundInputs.filter { it.type != ControlType.KEY }
             if(joyInputs.size > 1) {
@@ -53,6 +48,11 @@ class NovaConf(val location: Path) {
         } else if(!fs.metadata(pathToDosbox).isRegularFile) {
             currentErrors.add("DOSBox location is not a file!")
         }
+
+        if(confPath.isNotBlank() && !fs.exists(confPath.toPath())) {
+            currentErrors.add("Custom configuration file is missing and will be ignored!")
+        }
+
         errors = currentErrors
     }
 
@@ -80,6 +80,7 @@ class NovaConf(val location: Path) {
             saveReplays = (readUtf8Line()?:"false").toBoolean()
             userConf = (readUtf8Line()?:"false").toBoolean()
             attract = (readUtf8Line()?:"false").toBoolean()
+            confPath = readUtf8Line()?:""
         }
     }
 
@@ -94,6 +95,7 @@ class NovaConf(val location: Path) {
             writeUtf8("$saveReplays\n")
             writeUtf8("$userConf\n")
             writeUtf8("$attract\n")
+            writeUtf8("$confPath\n")
         }
     }
 
@@ -102,13 +104,6 @@ class NovaConf(val location: Path) {
             p1Config.up,p1Config.down,p1Config.left,p1Config.right,p1Config.punch,p1Config.kick,
             p2Config.up,p2Config.down,p2Config.left,p2Config.right,p2Config.punch,p2Config.kick,
         )
-    }
-
-    fun isUsingHat(): Boolean {
-        getBoundInputs().find { it.type == ControlType.HAT }?.let {
-            return true
-        }
-        return false
     }
 
     private fun getDefaultP1Config(): ControlMapping {

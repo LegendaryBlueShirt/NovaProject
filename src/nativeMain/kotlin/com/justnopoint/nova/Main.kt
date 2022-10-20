@@ -61,6 +61,7 @@ class Win32Container: NovaWindowSDL() {
                 entryPointer = getBaseAddress(it.hProcess)
                 if (entryPointer != 0L) {
                     println("Entry pointer at $entryPointer")
+                    createJoyToKeyMappings(project.novaConf)
                 }
             }
         }
@@ -70,6 +71,28 @@ class Win32Container: NovaWindowSDL() {
             TranslateMessage(winmsg)
             DispatchMessage?.invoke(winmsg)
         }
+    }
+
+    var inputToKeyMapping = emptyMap<ButtonMap, Int>()
+    private fun createJoyToKeyMappings(conf: NovaConf) {
+        val boundInputs = conf.getBoundInputs()
+        val usedScancodes = boundInputs.filter { it.type == ControlType.KEY }.map { it.scancode }
+        val possibleMappings = sdlKeyMapping.keys.filterNot { key ->
+            usedScancodes.contains(key)
+        }
+        val nonKeyMappings = boundInputs.filterNot { it.type == ControlType.KEY }
+        inputToKeyMapping = nonKeyMappings.zip(possibleMappings).toMap()
+    }
+
+    private val inputBuffer = MemScope().allocArray<INPUT>(1)
+    override fun sendKeyEvent(mappedButton: ButtonMap, up: Boolean) {
+        if(mappedButton.type == ControlType.KEY) return
+
+        val desiredVirtInput = inputToKeyMapping[mappedButton] ?: return
+        inputBuffer[0].type = INPUT_KEYBOARD.toUInt()
+        inputBuffer[0].ki.wVk = sdlKeyMapping[desiredVirtInput] ?: return
+        inputBuffer[0].ki.dwFlags = if(up) KEYEVENTF_KEYUP.toUInt() else 0u
+        SendInput(1, inputBuffer, sizeOf<INPUT>().toInt())
     }
 
     override fun executeCommand(executable: String, command: String) {
@@ -86,8 +109,8 @@ class Win32Container: NovaWindowSDL() {
         return selectedDirectory?.toKStringFromUtf16()?:""
     }
 
-    override fun showFileChooser(start: String, prompt: String): String {
-        val filters = MemScope().allocArrayOf("*.exe".wcstr.getPointer(MemScope()))
+    override fun showFileChooser(start: String, prompt: String, filter: String, filterDesc: String): String {
+        val filters = MemScope().allocArrayOf(filter.wcstr.getPointer(MemScope()))
         val selectedFile: CPointer<wchar_tVar>? =
             tinyfd_openFileDialogW(
                 aTitle = prompt.wcstr,
@@ -95,7 +118,7 @@ class Win32Container: NovaWindowSDL() {
                 aAllowMultipleSelects = 0,
                 aFilterPatterns = filters,
                 aNumOfFilterPatterns = 1,
-                aSingleFilterDescription = "executable files".wcstr
+                aSingleFilterDescription = filterDesc.wcstr
             )
         return selectedFile?.toKStringFromUtf16()?:""
     }
@@ -213,3 +236,22 @@ val trainingKeyMapping = mapOf(
     VK_F2 to VIRT_F2,
     VK_F3 to VIRT_F3
 )
+
+val sdlKeyMapping = mapOf(
+    VIRT_A to 0x41.toUShort(),
+    VIRT_B to 0x42.toUShort(),
+    VIRT_C to 0x43.toUShort(),
+    VIRT_D to 0x44.toUShort(),
+    VIRT_E to 0x45.toUShort(),
+    VIRT_F to 0x46.toUShort(),
+    VIRT_G to 0x47.toUShort(),
+    VIRT_H to 0x48.toUShort(),
+    VIRT_I to 0x49.toUShort(),
+    VIRT_J to 0x4A.toUShort(),
+    VIRT_K to 0x4B.toUShort(),
+    VIRT_L to 0x4C.toUShort()
+)
+
+actual fun getPossibleMappings(): Map<Int, Any> {
+    return sdlKeyMapping
+}
