@@ -72,7 +72,8 @@ class Win32Container: NovaWindowSDL() {
         }
     }
 
-    override fun executeCommand(executable: String, command: String) {
+    override fun executeCommand(executable: String, args: List<String>) {
+        val command = args.joinToString(" ")
         processInfo = executeCommandNative(executable, command)
         //dosboxWindow = SDL_CreateWindowFrom(hwnd)?.pointed
         //com.justnopoint.nova.getProcessInfo?.pointed?.hProcess

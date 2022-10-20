@@ -45,6 +45,15 @@ kotlin {
                     "-libraryPath", "${nativelibs}/lib/x86_64-linux-gnu"
                 )
             }
+            val tinyfiledialogs by creating {
+                includeDirs {
+                    allHeaders("${nativelibs}/include", "${project.projectDir}/native/include")
+                }
+                extraOpts = mutableListOf(
+                    "-libraryPath", "${nativelibs}/lib",
+                    "-libraryPath", "${project.projectDir}/native/lib"
+                )
+            }
         }
     }
 

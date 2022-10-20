@@ -1,3 +1,3 @@
 headers = wchar.h tinyfiledialogs.h
-staticLibraries = tinyfiledialogs64.lib
+staticLibraries = tinyfiledialogs64.lib tinyfiledialogs.a
 package = tinyfiledialogs

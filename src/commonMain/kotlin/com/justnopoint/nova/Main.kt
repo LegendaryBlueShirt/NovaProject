@@ -4,6 +4,7 @@ import com.justnopoint.nova.menu.MainMenu
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
+import platform.posix.write
 import kotlin.system.getTimeMillis
 
 fun main() {
@@ -89,8 +90,8 @@ class NovaProject {
     private fun startDosBox(replayFile: Path? = null, userconf: Boolean = false, saveReplays: Boolean = false, mode: String = "two_player") {
         dosboxConf.writeConfFiles(novaConf)
         val dosboxConfPath = dosboxConf.getConfPath()
-        val separatorPosition = novaConf.dosboxPath.lastIndexOf('\\')
-        val exe = novaConf.dosboxPath.substring(separatorPosition + 1)
+        val dosboxPath = novaConf.dosboxPath.toPath()
+        val exe = dosboxPath.name
         val omfParams = if(replayFile != null) {
             "play $replayFile"
         } else if(saveReplays) {
@@ -98,18 +99,19 @@ class NovaProject {
         } else {
             mode
         }
+        println(exe)
         val args = listOfNotNull(
             exe,
             if(userconf) "-userconf" else null,
-            "-noconsole",
+            //"-noconsole",
             "-conf \"$dosboxConfPath\"",
             "-c \"mount c ${novaConf.omfPath}\"",
             "-c \"c:\"",
             "-c \"file0001 $omfParams\"",
             "-c \"exit\""
         )
-        val command = args.joinToString(" ")
-        window.executeCommand(executable = novaConf.dosboxPath, command = command)
+        //val command = args.joinToString(" ")
+        window.executeCommand(executable = novaConf.dosboxPath, args = args)
         //This doesn't work for DOSBox staging! AAAAAAAAAAA
 //        getFileSystem().openReadOnly("stdout.txt".toPath()).use {handle ->
 //            handle.source().buffer().use {buffer ->
@@ -119,11 +121,13 @@ class NovaProject {
     }
 
     fun dosBoxFinished() {
+        loadOmfConfig()
         mainMenu.gameEnd()
     }
 
     private fun writeOmfConfig(singlePlayer: Boolean) {
         val configPath = novaConf.omfPath.toPath().div("SETUP.CFG")
+        FileSystem.SYSTEM.delete(path = configPath, mustExist = false)
         FileSystem.SYSTEM.write(file = configPath, mustCreate = false) {
             omfConfig?.buildFile(this, singlePlayer)
         }
@@ -181,6 +185,7 @@ class NovaProject {
     private fun onEnd() {
         window.destroy()
         novaConf.save()
+        writeOmfConfig(true)
     }
 
     fun showFileChooser(start: String, prompt: String): String {
@@ -202,7 +207,7 @@ interface NovaWindow {
     fun endRender()
     //fun showText(textLine: String)
     fun showText(textLine: String, font: Int, x: Int, y: Int, reverse: Boolean = false)
-    fun executeCommand(executable: String, command: String)
+    fun executeCommand(executable: String, args: List<String>)
     fun showFileChooser(start: String, prompt: String): String
     fun showFolderChooser(start: String, prompt: String): String
     fun setJoystickEnabled(joyEnabled: Boolean)
