@@ -71,39 +71,15 @@ class DOSBoxConf {
             writeUtf8(
                 "[cpu]\ncycles=fixed 14500\n"
             )
-//            if(novaConf.joyEnabled) {
-//                val joyType = if (novaConf.isUsingHat()) "fcs" else "auto" //DOSBox only supports hat mappings in fcs mode.
-//                writeUtf8(
-//                    "[joystick]\njoysticktype=$joyType\ntimed=true\n" //Trying out timed=true, doesn't seem to matter.
-//                )
-//            } else {
-                writeUtf8(
-                    "[joystick]\njoysticktype=none\n"
-                )
-            //}
+            writeUtf8(
+                "[joystick]\njoysticktype=none\n"
+            )
             if(SoundCard.isGravisEnabled(novaConf.omfPath.toPath())) {
                 writeUtf8("[gus]\ngus=true\n")
             }
         }
     }
 }
-
-//fun ButtonMap.dosboxMap(scancodeMap: Map<Int, Int>): String {
-//    return when(type) {
-//        ControlType.KEY -> {
-//            "key ${scancodeMap[scancode]}"
-//        }
-//        ControlType.AXIS -> {
-//            "stick_$controlId axis $axisId $direction"
-//        }
-//        ControlType.HAT -> {
-//            "stick_$controlId hat $axisId $direction"
-//        }
-//        ControlType.BUTTON -> {
-//            "stick_$controlId button $axisId"
-//        }
-//    }
-//}
 
 fun ButtonMap.dosboxMap(scancodeMap: Map<Int, Int>, availableCodes: ArrayDeque<Int>): String {
     return if(type == ControlType.KEY) {

@@ -18,8 +18,6 @@ abstract class NovaWindowSDL: NovaWindow {
 
     //* Joystick Management *//
     private var joyEnabled = false
-    //private val joystickDevices = mutableMapOf<Int, CPointer<SDL_Joystick>>()
-    //private val joystickIdToDevice = mutableMapOf<Int, Int>()
     private val joysticks = mutableListOf<Joystick>()
 
     open fun init(): Boolean {
