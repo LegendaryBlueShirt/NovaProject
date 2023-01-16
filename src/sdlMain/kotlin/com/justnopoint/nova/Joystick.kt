@@ -13,11 +13,14 @@ class Joystick(val controllerId: Int, private val controller: CPointer<SDL_Joyst
     init {
         println("Creating joystick $controllerId")
         val nButtons = SDL_JoystickNumButtons(controller)
+        println("Found $nButtons buttons")
         buttons = (0 until nButtons).associate { it.toUByte() to Button(it, false) }
         val nAxes = SDL_JoystickNumAxes(controller)
-        axes = (0 until nButtons).associate { it.toUByte() to Axis(it, 0) }
+        println("Found $nAxes axes")
+        axes = (0 until nAxes).associate { it.toUByte() to Axis(it, 0) }
         val nHats = SDL_JoystickNumHats(controller)
-        hats = (0 until nButtons).associate { it.toUByte() to Hat(it, 0) }
+        println("Found $nHats hats")
+        hats = (0 until nHats).associate { it.toUByte() to Hat(it, 0) }
     }
 
     fun updateControllerButton(event: SDL_Event) {
@@ -45,7 +48,7 @@ class Joystick(val controllerId: Int, private val controller: CPointer<SDL_Joyst
 
     fun updateControllerAxis(event: SDL_Event) {
         val value = event.jaxis.value
-        val dir = if(value < -3200) -1 else if(value > 3200) 1 else 0
+        val dir = if(value < -12800) -1 else if(value > 12800) 1 else 0
         val axis = event.jaxis.axis
         axes[axis]?.let {
             if(dir != it.direction) {
