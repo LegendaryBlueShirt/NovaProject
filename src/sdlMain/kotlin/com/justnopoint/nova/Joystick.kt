@@ -3,12 +3,10 @@ package com.justnopoint.nova
 import SDL.*
 import kotlinx.cinterop.CPointer
 
-class Joystick(val controllerId: Int, private val controller: CPointer<SDL_Joystick>) {
+class Joystick(private val controllerId: Int, private val controller: CPointer<SDL_Joystick>): Input {
     private val buttons: Map<UByte, Button>
     private val axes: Map<UByte, Axis>
     private val hats: Map<UByte, Hat>
-
-    val events = ArrayDeque<ControllerEvent>()
 
     init {
         println("Creating joystick $controllerId")
@@ -23,8 +21,10 @@ class Joystick(val controllerId: Int, private val controller: CPointer<SDL_Joyst
         hats = (0 until nHats).associate { it.toUByte() to Hat(it, 0) }
     }
 
-    fun updateControllerButton(event: SDL_Event) {
-        when(event.type) {
+    private val events = ArrayDeque<ControllerEvent>()
+
+    override fun updateControllerButton(event: SDL_Event) {
+        when (event.type) {
             SDL_JOYBUTTONUP -> {
                 val button = event.jbutton.button
                 buttons[button]?.let {
@@ -34,6 +34,7 @@ class Joystick(val controllerId: Int, private val controller: CPointer<SDL_Joyst
                     }
                 }
             }
+
             SDL_JOYBUTTONDOWN -> {
                 val button = event.jbutton.button
                 buttons[button]?.let {
@@ -46,7 +47,7 @@ class Joystick(val controllerId: Int, private val controller: CPointer<SDL_Joyst
         }
     }
 
-    fun updateControllerAxis(event: SDL_Event) {
+    override fun updateControllerAxis(event: SDL_Event) {
         val value = event.jaxis.value
         val dir = if(value < -12800) -1 else if(value > 12800) 1 else 0
         val axis = event.jaxis.axis
@@ -63,7 +64,7 @@ class Joystick(val controllerId: Int, private val controller: CPointer<SDL_Joyst
         }
     }
 
-    fun updateControllerHat(event: SDL_Event) {
+    override fun updateControllerHat(event: SDL_Event) {
         val hatId = event.jhat.hat
         val dir = event.jhat.value.toInt()
         hats[hatId]?.let {
@@ -77,15 +78,22 @@ class Joystick(val controllerId: Int, private val controller: CPointer<SDL_Joyst
         }
     }
 
-    fun close() {
+    override fun close() {
         if (SDL_JoystickGetAttached(controller) != 0u) {
             println("Closing joystick $controllerId")
             SDL_JoystickClose(controller)
         }
     }
 
-    fun getCurrentId(): SDL_JoystickID {
+    override fun getDeviceId(): Int {
+        return controllerId
+    }
+    override fun getCurrentId(): SDL_JoystickID {
         return SDL_JoystickGetDeviceInstanceID(controllerId)
+    }
+
+    override fun getEvents(): ArrayDeque<ControllerEvent> {
+        return events
     }
 
     companion object {
@@ -97,9 +105,3 @@ class Joystick(val controllerId: Int, private val controller: CPointer<SDL_Joyst
         }
     }
 }
-
-data class Button(val buttonId: Int, var pressed: Boolean)
-data class Hat(val hatId: Int, var direction: Int)
-data class Axis(val axisId: Int, var direction: Int)
-
-data class ControllerEvent(val type: ControlType, val id: Int, val direction: Int, val release: Boolean)

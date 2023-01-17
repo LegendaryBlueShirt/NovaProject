@@ -18,15 +18,16 @@ abstract class NovaWindowSDL: NovaWindow {
 
     //* Joystick Management *//
     private var joyEnabled = false
-    private val joysticks = mutableListOf<Joystick>()
+    private val joysticks = mutableListOf<Input>()
 
     open fun init(): Boolean {
-        if(SDL_Init(SDL_INIT_GAMECONTROLLER or SDL_INIT_VIDEO) != 0) {
+        if(SDL_Init(SDL_INIT_GAMECONTROLLER or SDL_INIT_VIDEO or SDL_INIT_JOYSTICK) != 0) {
             error("SDL could not initialize! SDL_Error: ${SDL_GetError()}")
         }
 
         SDL_JoystickEventState(SDL_ENABLE)
         SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS,"1")
+        SDL_GameControllerAddMappingsFromRW(SDL_RWFromFile("gamecontrollerdb.txt", "rb"), 1)
 
         if((IMG_Init(IMG_INIT_PNG.toInt()) and IMG_INIT_PNG.toInt()) == 0) {
             error("SDL_Image could not initialize! SDL_Error: ${IMG_GetError?.invoke()}")
@@ -57,6 +58,15 @@ abstract class NovaWindowSDL: NovaWindow {
                     val instanceId = event.jbutton.which
                     joysticks.find { it.getCurrentId() == instanceId }?.updateControllerButton(event)
                 }
+                SDL_CONTROLLERBUTTONDOWN,
+                SDL_CONTROLLERBUTTONUP -> {
+                    val instanceId = event.cbutton.which
+                    joysticks.find { it.getCurrentId() == instanceId }?.updateControllerButton(event)
+                }
+                SDL_CONTROLLERAXISMOTION -> {
+                    val instanceId = event.caxis.which
+                    joysticks.find { it.getCurrentId() == instanceId }?.updateControllerAxis(event)
+                }
                 SDL_JOYAXISMOTION -> {
                     val instanceId = event.jaxis.which
                     joysticks.find { it.getCurrentId() == instanceId }?.updateControllerAxis(event)
@@ -65,11 +75,31 @@ abstract class NovaWindowSDL: NovaWindow {
                     val instanceId = event.jhat.which
                     joysticks.find { it.getCurrentId() == instanceId }?.updateControllerHat(event)
                 }
+                SDL_CONTROLLERDEVICEADDED,
                 SDL_JOYDEVICEADDED -> {
                     if(joyEnabled) {
                         val id = event.jdevice.which
-                        Joystick.open(id)?.let {
-                            joysticks.add(it)
+                        if(joysticks.find { it.getDeviceId() == id } != null) {
+                            println("Deduped.")
+                        } else {
+                            if (SDL_IsGameController(id) == SDL_TRUE) {
+                                Controller.open(id)?.let {
+                                    joysticks.add(it)
+                                }
+                            } else {
+                                Joystick.open(id)?.let {
+                                    joysticks.add(it)
+                                }
+                            }
+                        }
+                    }
+                }
+                SDL_CONTROLLERDEVICEREMOVED -> {
+                    if(joyEnabled) {
+                        val instanceId = event.cdevice.which
+                        joysticks.find { it.getCurrentId() == instanceId }?.let {
+                            it.close()
+                            joysticks.remove(it)
                         }
                     }
                 }
@@ -86,8 +116,8 @@ abstract class NovaWindowSDL: NovaWindow {
         }
         joysticks.forEach {
             if(joyEnabled) {
-                while(it.events.isNotEmpty()) {
-                    val event = it.events.removeFirst()
+                while(it.getEvents().isNotEmpty()) {
+                    val event = it.getEvents().removeFirst()
                     val controller = it.getCurrentId()
                     when(event.type) {
                         ControlType.AXIS -> {
@@ -115,6 +145,7 @@ abstract class NovaWindowSDL: NovaWindow {
                                 type = ControlType.BUTTON,
                                 controlId = controller,
                                 axisId = event.id,
+                                direction = event.direction,
                                 name = "Joy $controller Button ${event.id}")
                             project.handleInput(input, event.release)
                         }
@@ -122,7 +153,7 @@ abstract class NovaWindowSDL: NovaWindow {
                     }
                 }
             } else {
-                it.events.clear()
+                it.getEvents().clear()
             }
         }
     }

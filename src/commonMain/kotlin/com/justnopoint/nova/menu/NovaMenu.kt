@@ -64,10 +64,19 @@ abstract class NovaMenu(val project: NovaProject) {
                 }
             }
             ControlType.BUTTON -> {
-                if(input.axisId == 0) {
-                    select()
+                if(input.direction == 0) {
+                    if(input.axisId == 0) {
+                        select()
+                    } else {
+                        cancel()
+                    }
                 } else {
-                    cancel()
+                    when(input.direction) {
+                        1 -> up()
+                        4 -> down()
+                        8 -> left()
+                        2 -> right()
+                    }
                 }
             }
             ControlType.HAT -> {
