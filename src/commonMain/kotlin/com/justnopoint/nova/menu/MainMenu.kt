@@ -93,7 +93,6 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
                 configMenu.handleInput(input)
                 if(configMenu.currentState == ConfigMenu.State.MENU) {
                     currentState = State.MENU
-                    project.loadOmfConfig()
                     if(canPlay()) {
                         replayMenu.loadReplays(project.novaConf.omfPath.toPath())
                     }
