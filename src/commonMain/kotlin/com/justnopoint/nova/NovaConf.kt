@@ -64,20 +64,20 @@ class NovaConf(private val location: Path) {
         fs.read(location) {
             dosboxPath = readUtf8Line()?:""
             omfPath = readUtf8Line()?:""
+            p1Config.esc = (readUtf8Line()?:"").toButtonMap()
+            p2Config.esc = (readUtf8Line()?:"").toButtonMap()
             p1Config.up = (readUtf8Line()?:"").toButtonMap()
             p1Config.down = (readUtf8Line()?:"").toButtonMap()
             p1Config.left = (readUtf8Line()?:"").toButtonMap()
             p1Config.right = (readUtf8Line()?:"").toButtonMap()
             p1Config.punch = (readUtf8Line()?:"").toButtonMap()
             p1Config.kick = (readUtf8Line()?:"").toButtonMap()
-            p1Config.esc = (readUtf8Line()?:"").toButtonMap()
             p2Config.up = (readUtf8Line()?:"").toButtonMap()
             p2Config.down = (readUtf8Line()?:"").toButtonMap()
             p2Config.left = (readUtf8Line()?:"").toButtonMap()
             p2Config.right = (readUtf8Line()?:"").toButtonMap()
             p2Config.punch = (readUtf8Line()?:"").toButtonMap()
             p2Config.kick = (readUtf8Line()?:"").toButtonMap()
-            p2Config.esc = (readUtf8Line()?:"").toButtonMap()
             joyEnabled = (readUtf8Line()?:"true").toBoolean()
             saveReplays = (readUtf8Line()?:"false").toBoolean()
             userConf = (readUtf8Line()?:"false").toBoolean()
