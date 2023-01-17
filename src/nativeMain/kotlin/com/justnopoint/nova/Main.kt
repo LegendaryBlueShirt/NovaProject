@@ -75,7 +75,7 @@ class Win32Container: NovaWindowSDL() {
 
     var inputToKeyMapping = emptyMap<ButtonMap, Int>()
     private fun createJoyToKeyMappings(conf: NovaConf) {
-        val boundInputs = conf.getBoundInputs()
+        val boundInputs = conf.getBoundInputs(includeEsc = true)
         val usedScancodes = boundInputs.filter { it.type == ControlType.KEY }.map { it.scancode }
         val possibleMappings = sdlKeyMapping.keys.filterNot { key ->
             usedScancodes.contains(key)
@@ -88,10 +88,10 @@ class Win32Container: NovaWindowSDL() {
     override fun sendKeyEvent(mappedButton: ButtonMap, up: Boolean) {
         if(mappedButton.type == ControlType.KEY) return
 
-        val desiredVirtInput = inputToKeyMapping[mappedButton] ?: return
         inputBuffer[0].type = INPUT_KEYBOARD.toUInt()
+        val desiredVirtInput = inputToKeyMapping[mappedButton] ?: return
         inputBuffer[0].ki.wVk = sdlKeyMapping[desiredVirtInput] ?: return
-        inputBuffer[0].ki.dwFlags = if(up) KEYEVENTF_KEYUP.toUInt() else 0u
+        inputBuffer[0].ki.dwFlags = if (up) KEYEVENTF_KEYUP.toUInt() else 0u
         SendInput(1, inputBuffer, sizeOf<INPUT>().toInt())
     }
 
@@ -249,7 +249,9 @@ val sdlKeyMapping = mapOf(
     VIRT_I to 0x49.toUShort(),
     VIRT_J to 0x4A.toUShort(),
     VIRT_K to 0x4B.toUShort(),
-    VIRT_L to 0x4C.toUShort()
+    VIRT_L to 0x4C.toUShort(),
+    VIRT_M to 0x4D.toUShort(),
+    VIRT_N to 0x4E.toUShort()
 )
 
 actual fun getPossibleMappings(): Map<Int, Any> {

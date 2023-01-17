@@ -278,5 +278,6 @@ data class ControlMapping(
     var left: ButtonMap,
     var right: ButtonMap,
     var punch: ButtonMap,
-    var kick: ButtonMap
+    var kick: ButtonMap,
+    var esc: ButtonMap
 )

@@ -70,12 +70,14 @@ class NovaConf(private val location: Path) {
             p1Config.right = (readUtf8Line()?:"").toButtonMap()
             p1Config.punch = (readUtf8Line()?:"").toButtonMap()
             p1Config.kick = (readUtf8Line()?:"").toButtonMap()
+            p1Config.esc = (readUtf8Line()?:"").toButtonMap()
             p2Config.up = (readUtf8Line()?:"").toButtonMap()
             p2Config.down = (readUtf8Line()?:"").toButtonMap()
             p2Config.left = (readUtf8Line()?:"").toButtonMap()
             p2Config.right = (readUtf8Line()?:"").toButtonMap()
             p2Config.punch = (readUtf8Line()?:"").toButtonMap()
             p2Config.kick = (readUtf8Line()?:"").toButtonMap()
+            p2Config.esc = (readUtf8Line()?:"").toButtonMap()
             joyEnabled = (readUtf8Line()?:"true").toBoolean()
             saveReplays = (readUtf8Line()?:"false").toBoolean()
             userConf = (readUtf8Line()?:"false").toBoolean()
@@ -88,7 +90,7 @@ class NovaConf(private val location: Path) {
         FileSystem.SYSTEM.write(file = location, mustCreate = false) {
             writeUtf8("$dosboxPath\n")
             writeUtf8("$omfPath\n")
-            getBoundInputs().forEach { binding ->
+            getBoundInputs(includeEsc = true).forEach { binding ->
                 writeUtf8("${binding.toNovaConf()}\n")
             }
             writeUtf8("$joyEnabled\n")
@@ -99,11 +101,19 @@ class NovaConf(private val location: Path) {
         }
     }
 
-    fun getBoundInputs(): List<ButtonMap> {
-        return listOf(
-            p1Config.up,p1Config.down,p1Config.left,p1Config.right,p1Config.punch,p1Config.kick,
-            p2Config.up,p2Config.down,p2Config.left,p2Config.right,p2Config.punch,p2Config.kick,
-        )
+    fun getBoundInputs(includeEsc: Boolean = false): List<ButtonMap> {
+        return if(includeEsc) {
+            listOf(
+                p1Config.esc, p2Config.esc,
+                p1Config.up, p1Config.down, p1Config.left, p1Config.right, p1Config.punch, p1Config.kick,
+                p2Config.up, p2Config.down, p2Config.left, p2Config.right, p2Config.punch, p2Config.kick
+            )
+        } else {
+            listOf(
+                p1Config.up, p1Config.down, p1Config.left, p1Config.right, p1Config.punch, p1Config.kick,
+                p2Config.up, p2Config.down, p2Config.left, p2Config.right, p2Config.punch, p2Config.kick
+            )
+        }
     }
 
     private fun getDefaultP1Config(): ControlMapping {
@@ -113,7 +123,8 @@ class NovaConf(private val location: Path) {
             left = ButtonMap(type = ControlType.KEY, scancode = VIRT_LEFT, name = "Left"),
             right = ButtonMap(type = ControlType.KEY, scancode = VIRT_RIGHT, name = "Right"),
             punch = ButtonMap(type = ControlType.KEY, scancode = VIRT_RETURN, name = "Return"),
-            kick = ButtonMap(type = ControlType.KEY, scancode = VIRT_RSHIFT, name = "Right Shift")
+            kick = ButtonMap(type = ControlType.KEY, scancode = VIRT_RSHIFT, name = "Right Shift"),
+            esc = ButtonMap(type = ControlType.KEY, scancode = VIRT_ESC, name = "Escape")
         )
     }
 
@@ -124,7 +135,8 @@ class NovaConf(private val location: Path) {
             left = ButtonMap(type = ControlType.KEY, scancode = VIRT_A, name = "A"),
             right = ButtonMap(type = ControlType.KEY, scancode = VIRT_D, name = "D"),
             punch = ButtonMap(type = ControlType.KEY, scancode = VIRT_LSHIFT, name = "Left Shift"),
-            kick = ButtonMap(type = ControlType.KEY, scancode = VIRT_LCTRL, name = "Left Ctrl")
+            kick = ButtonMap(type = ControlType.KEY, scancode = VIRT_LCTRL, name = "Left Ctrl"),
+            esc = ButtonMap(type = ControlType.KEY, scancode = VIRT_ESC, name = "Escape")
         )
     }
 }
