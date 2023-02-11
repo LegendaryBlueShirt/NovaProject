@@ -23,6 +23,7 @@ class OMFConf(buffer: BufferedSource) {
 
     companion object {
         const val FILENAME = "SETUP.CFG"
+        const val SETUP = "SETUP.EXE"
         fun isValid(handle: FileHandle): Boolean {
             return true //TODO
         }

@@ -10,7 +10,7 @@ class GameMenu(project: NovaProject) : NovaMenu(project) {
     enum class State {
         MENU, GAME, TRAINING
     }
-    var currentState = State.MENU
+    private var currentState = State.MENU
 
     override fun reset() {
         currentState = State.MENU
@@ -18,19 +18,21 @@ class GameMenu(project: NovaProject) : NovaMenu(project) {
     }
 
     override fun render(window: NovaWindow, frame: Int) {
-        if(selectedIndex < 0) selectedIndex = 2
-        if(selectedIndex > 2) selectedIndex = 0
+        if(selectedIndex < 0) selectedIndex = 3
+        if(selectedIndex > 3) selectedIndex = 0
 
         when (currentState) {
             State.MENU -> {
                 renderText(window, "Two Player Versus", 18 * scale, 20 * scale, selectedIndex == 0, frame)
                 renderText(window, "Training Mode", 18 * scale, 33 * scale, selectedIndex == 1, frame)
                 renderText(window, "Normal Start", 18 * scale, 46 * scale, selectedIndex == 2, frame)
+                renderText(window, "Game Setup", 18 * scale, 59 * scale, selectedIndex == 3, frame)
 
                 val hintText = when (selectedIndex) {
                     0 -> "Fight against another player!"
                     1 -> "Start two player mode with helpful features enabled."
                     2 -> "Start the game normally, you will be taken to the normal game menu."
+                    3 -> "Enter game setup, mandatory for fresh copies of OMF."
                     else -> ""
                 }
                 window.showText(hintText, MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
@@ -58,6 +60,10 @@ class GameMenu(project: NovaProject) : NovaMenu(project) {
             }
             2 -> {
                 project.startNormal()
+                currentState = State.GAME
+            }
+            3 -> {
+                project.startSetup()
                 currentState = State.GAME
             }
         }

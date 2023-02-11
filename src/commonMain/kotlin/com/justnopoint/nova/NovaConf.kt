@@ -9,7 +9,24 @@ import okio.Path
 import okio.Path.Companion.toPath
 
 class NovaConf(private val location: Path) {
-    private var configuration = NovaConfFile(p1Config = getDefaultP1Config(), p2Config = getDefaultP2Config())
+    private val configuration: NovaConfFile
+
+    init {
+        var readConfiguration = NovaConfFile(p1Config = getDefaultP1Config(), p2Config = getDefaultP2Config())
+        FileSystem.SYSTEM.apply {
+            if(exists(location)) {
+                try {
+                    read(location) {
+                        readConfiguration = Json.decodeFromBufferedSource(this)
+                    }
+                } catch (e: Exception) {
+                    showErrorPopup("Failed to load Settings", e.message ?: "Unknown Error")
+                }
+            }
+        }
+        configuration = readConfiguration
+        save()
+    }
 
     var dosboxPath: String by configuration::dosBoxPath
     var omfPath: String by configuration::omfPath
@@ -27,55 +44,42 @@ class NovaConf(private val location: Path) {
     fun checkErrors() {
         val currentErrors = mutableListOf<String>()
         val boundInputs = getBoundInputs()
-        if(!joyEnabled) {
+        if (!joyEnabled) {
             val joyInputs = boundInputs.filter { it.type != ControlType.KEY }
-            if(joyInputs.size > 1) {
+            if (joyInputs.size > 1) {
                 currentErrors.add("Joysticks disabled, please remap buttons")
             }
         }
-        if(boundInputs.distinct().size < boundInputs.size) {
+        if (boundInputs.distinct().size < boundInputs.size) {
             currentErrors.add("Duplicate inputs detected")
         }
         val fs = FileSystem.SYSTEM
         val pathToOmf = omfPath.toPath()
-        if(omfPath.isBlank() || !fs.exists(pathToOmf)) {
+        if (omfPath.isBlank() || !fs.exists(pathToOmf)) {
             currentErrors.add("OMF location not configured!")
         } else {
             val omffiles = fs.list(pathToOmf)
             val exec = omffiles.find { it.name.contains(other = "FILE0001.EXE", ignoreCase = true) }
+            val setup = omffiles.find { it.name.contains(other = OMFConf.SETUP, ignoreCase = true) }
             val cfg = omffiles.find { it.name.contains(other = OMFConf.FILENAME, ignoreCase = true) }
-            if(exec == null || cfg == null) {
+            if (exec == null || setup == null) {
                 currentErrors.add("Missing files in OMF location!")
+            } else if (cfg == null) {
+                currentErrors.add("OMF configuration missing, please run setup")
             }
         }
         val pathToDosbox = dosboxPath.toPath()
-        if(dosboxPath.isBlank() || !fs.exists(pathToDosbox)) {
+        if (dosboxPath.isBlank() || !fs.exists(pathToDosbox)) {
             currentErrors.add("DOSBox location not configured!")
-        } else if(!fs.metadata(pathToDosbox).isRegularFile) {
+        } else if (!fs.metadata(pathToDosbox).isRegularFile) {
             currentErrors.add("DOSBox location is not a file!")
         }
 
-        if(confPath.isNotBlank() && !fs.exists(confPath.toPath())) {
+        if (confPath.isNotBlank() && !fs.exists(confPath.toPath())) {
             currentErrors.add("Custom configuration file is missing and will be ignored!")
         }
 
         errors = currentErrors
-    }
-
-    init {
-        FileSystem.SYSTEM.apply {
-            if(!exists(location)) {
-                save()
-            }
-            try {
-                read(location) {
-                    configuration = Json.decodeFromBufferedSource(this)
-                }
-            } catch (e: Exception) {
-                showErrorPopup("Failed to load Settings", e.message?:"Unknown Error")
-                save()
-            }
-        }
     }
 
     fun save() {

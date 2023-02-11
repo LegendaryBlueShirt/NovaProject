@@ -49,9 +49,9 @@ class NovaProject {
             currentFrameTime = getTimeMillis()
             nextFrameTime = (startFrameTime + (frameCount*millisPerFrame).toLong())
             if(currentFrameTime > nextFrameTime) {
-                if(!gameRunning) {
+                //if(!gameRunning) {
                     renderFrame()
-                }
+                //}
                 frameCount++
                 if(frameCount < 0) {
                     frameCount = 0
@@ -95,6 +95,28 @@ class NovaProject {
             writeOmfConfig(false)
             startDosBox(saveReplays = false, userconf = false)
         }
+    }
+
+    fun startSetup() {
+        dosboxConf.writeConfFiles(novaConf)
+        val dosboxConfPath = dosboxConf.getConfPath()
+        val separatorPosition = novaConf.dosboxPath.lastIndexOf('\\')
+        val exe = novaConf.dosboxPath.substring(separatorPosition + 1)
+        val hasCustomConf = novaConf.confPath.isNotBlank() && FileSystem.SYSTEM.exists(novaConf.confPath.toPath())
+        val args = listOfNotNull(
+            exe,
+            if(novaConf.userConf) "-userconf" else null,
+            if(hasCustomConf) "-conf \"${novaConf.confPath}\"" else null,
+            "-noconsole",
+            "-conf \"$dosboxConfPath\"",
+            "-c \"mount c ${novaConf.omfPath}\"",
+            "-c \"c:\"",
+            "-c \"setup\"",
+            "-c \"exit\""
+        )
+        val command = args.joinToString(" ")
+        window.executeCommand(executable = novaConf.dosboxPath, command = command)
+        gameRunning = true
     }
 
     fun startReplay(path: Path) {
