@@ -1,6 +1,7 @@
 package com.justnopoint.nova
 
 import com.justnopoint.nova.menu.MainMenu
+import kotlinx.serialization.Serializable
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
@@ -14,11 +15,13 @@ fun main() {
 
 expect fun getNativeWindow(): NovaWindow?
 
+expect fun showErrorPopup(title: String, message: String)
+
 class NovaProject {
     private var quit = false
     private lateinit var window: NovaWindow
     var omfConfig: OMFConf? = null
-    val novaConf = NovaConf("nova.cfg".toPath())
+    val novaConf = NovaConf("novacfg.json".toPath())
     private val dosboxConf = DOSBoxConf()
     private val mainMenu = MainMenu(this)
 
@@ -38,7 +41,11 @@ class NovaProject {
         var currentFrameTime: Long
         var nextFrameTime: Long
         while (!quit) {
-            window.processEvents(this)
+            try {
+                window.processEvents(this)
+            } catch (e: Exception) {
+                showErrorPopup("Runtime Error", e.message?:"Unknown Error")
+            }
             currentFrameTime = getTimeMillis()
             nextFrameTime = (startFrameTime + (frameCount*millisPerFrame).toLong())
             if(currentFrameTime > nextFrameTime) {
@@ -139,18 +146,23 @@ class NovaProject {
 
     private fun writeOmfConfig(singlePlayer: Boolean) {
         val configPath = novaConf.omfPath.toPath().div("SETUP.CFG")
-        FileSystem.SYSTEM.write(file = configPath, mustCreate = false) {
-            omfConfig?.buildFile(this, singlePlayer)
+        try {
+            FileSystem.SYSTEM.write(file = configPath, mustCreate = false) {
+                omfConfig?.buildFile(this, singlePlayer)
+            }
+        } catch (e: Exception) {
+            showErrorPopup("Couldn't write OMF configuration", e.message?:"Unknown Error")
         }
     }
 
     @OptIn(ExperimentalUnsignedTypes::class)
     private fun onStart(window: NovaWindow) {
         this.window = window
+
         val background = loadPcx("NETARENA.PCX".toPath())?: error("Couldn't load background NETARENA.PCX")
+        bgTex = window.loadTexture(background)
         val font1image = loadPcx("NETFONT1.PCX".toPath())?: error("Couldn't load font NETFONT1.PCX")
         val font2image = loadPcx("NETFONT2.PCX".toPath())?: error("Couldn't load font NETFONT2.PCX")
-        bgTex = window.loadTexture(background)
 
         val darkenerRaster = UByteArray(320*144*4)
         for(n in 0 until (320*144)) {
@@ -185,7 +197,7 @@ class NovaProject {
         window.endRender()
     }
 
-    fun loadOmfConfig() {
+    private fun loadOmfConfig() {
         val configPath = novaConf.omfPath.toPath().div(OMFConf.FILENAME)
         val fs = FileSystem.SYSTEM
         if (fs.exists(configPath)) {
@@ -237,6 +249,7 @@ enum class ControlType {
     KEY, AXIS, BUTTON, HAT
 }
 
+@Serializable
 data class ButtonMap(
     val type: ControlType,
     val controlId: Int = -1,
@@ -274,6 +287,7 @@ fun String.toButtonMap(): ButtonMap {
     }
 }
 
+@Serializable
 data class ControlMapping(
     var up: ButtonMap,
     var down: ButtonMap,

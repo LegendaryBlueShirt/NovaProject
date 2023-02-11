@@ -9,6 +9,10 @@ actual fun getNativeWindow(): NovaWindow? {
     }
 }
 
+actual fun showErrorPopup(title: String, message: String) {
+    TODO()
+}
+
 class LinuxContainer: NovaWindowSDL() {
     override fun executeCommand(executable: String, command: String) {
         TODO("Not yet implemented")

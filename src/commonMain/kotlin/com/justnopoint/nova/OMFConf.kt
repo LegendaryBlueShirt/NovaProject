@@ -29,21 +29,25 @@ class OMFConf(buffer: BufferedSource) {
     }
 
     init {
-        speed = buffer.readByte().toUByte().toInt()
-        buffer.read(controlSettings)
-        p1ControlType = buffer.readShortLe().toInt()
-        buffer.skip(4)
-        buffer.read(unknowns)
-        difficulty = buffer.readShortLe().toInt()
-        throwRange = buffer.readShortLe().toInt()
-        hitPause = buffer.readShortLe().toInt()
-        blockDamage = buffer.readShortLe().toInt()
-        vitality = buffer.readShortLe().toInt()
-        jumpHeight = buffer.readShortLe().toInt()
-        buffer.readByteArray(8).toUByteArray().copyInto(flags)
-        sound = buffer.readByte().toUByte().toInt()
-        music = buffer.readByte().toUByte().toInt()
-        buffer.read(unkFooter)
+        try {
+            speed = buffer.readByte().toUByte().toInt()
+            buffer.read(controlSettings)
+            p1ControlType = buffer.readShortLe().toInt()
+            buffer.skip(4)
+            buffer.read(unknowns)
+            difficulty = buffer.readShortLe().toInt()
+            throwRange = buffer.readShortLe().toInt()
+            hitPause = buffer.readShortLe().toInt()
+            blockDamage = buffer.readShortLe().toInt()
+            vitality = buffer.readShortLe().toInt()
+            jumpHeight = buffer.readShortLe().toInt()
+            buffer.readByteArray(8).toUByteArray().copyInto(flags)
+            sound = buffer.readByte().toUByte().toInt()
+            music = buffer.readByte().toUByte().toInt()
+            buffer.read(unkFooter)
+        } catch (e: Exception) {
+            showErrorPopup("Error loading OMF configuration", e.message?:"Unknown Error")
+        }
     }
 
     fun buildFile(buffer: BufferedSink, isSinglePlayer: Boolean = false) {
