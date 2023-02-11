@@ -28,20 +28,24 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
                 window.showText("Set your in-game controls.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
             }
             KeyConfigState.AWAIT, KeyConfigState.CONFIGURE -> {
-                if(selectedIndex < 0) selectedIndex = 5
-                if(selectedIndex > 5) selectedIndex = 0
+                if(selectedIndex < 0) selectedIndex = 6
+                if(selectedIndex > 6) selectedIndex = 0
                 renderText(window, "Up", 18 * scale, 20 * scale, selectedIndex == 0, frame)
                 renderText(window, "Down", 18 * scale, 33 * scale, selectedIndex == 1, frame)
                 renderText(window, "Left", 18 * scale, 46 * scale, selectedIndex == 2, frame)
                 renderText(window, "Right", 18 * scale, 59 * scale, selectedIndex == 3, frame)
                 renderText(window, "Punch", 18 * scale, 72 * scale, selectedIndex == 4, frame)
                 renderText(window, "Kick", 18 * scale, 85 * scale, selectedIndex == 5, frame)
+                renderText(window, "Menu", 18 * scale, 111 * scale, selectedIndex == 6, frame)
 
                 currentConfig.apply {
                     listOf(up, down, left, right, punch, kick).forEachIndexed { index, control ->
                         val showRed = currentState == KeyConfigState.AWAIT && selectedIndex == index
                         renderText(window, "${control.name}", 90 * scale, (20 + 13*index) * scale, selectedIndex == index, frame, showRed)
                     }
+
+                    val showRed = currentState == KeyConfigState.AWAIT && selectedIndex == 6
+                    renderText(window, "${esc.name}", 90 * scale, 111 * scale, selectedIndex == 6, frame, showRed)
                 }
 
                 if(currentState == KeyConfigState.AWAIT) {
@@ -66,6 +70,7 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
                     3 -> currentConfig.right = input
                     4 -> currentConfig.punch = input
                     5 -> currentConfig.kick = input
+                    6 -> currentConfig.esc = input
                 }
                 currentState = KeyConfigState.CONFIGURE
             }
@@ -92,6 +97,7 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
                 3 -> currentConfig.right = map
                 4 -> currentConfig.punch = map
                 5 -> currentConfig.kick = map
+                6 -> currentConfig.esc = map
             }
         }
     }

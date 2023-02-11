@@ -134,6 +134,7 @@ class NovaProject {
     fun dosBoxFinished() {
         gameRunning = false
         mainMenu.gameEnd()
+        loadOmfConfig()
     }
 
     private fun writeOmfConfig(singlePlayer: Boolean) {
@@ -195,6 +196,7 @@ class NovaProject {
     private fun onEnd() {
         window.destroy()
         novaConf.save()
+        writeOmfConfig(true)
     }
 
     fun showFileChooser(start: String, prompt: String, filter: String, filterDesc: String): String {
@@ -278,5 +280,6 @@ data class ControlMapping(
     var left: ButtonMap,
     var right: ButtonMap,
     var punch: ButtonMap,
-    var kick: ButtonMap
+    var kick: ButtonMap,
+    var esc: ButtonMap
 )

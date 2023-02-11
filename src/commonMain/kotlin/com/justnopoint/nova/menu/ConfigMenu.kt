@@ -55,9 +55,9 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
 
                 window.showText(project.novaConf.dosboxPath.reversed(), MenuFonts.smallFont_yellow,302*scale, 33*scale, true)
                 window.showText(project.novaConf.omfPath.reversed(), MenuFonts.smallFont_yellow,302*scale, 59*scale, true)
-                renderReversed(window, if(project.novaConf.joyEnabled) "On" else "Off", 302 * scale, 72 * scale, selectedIndex == 3, frame)
-                renderReversed(window, if(project.novaConf.saveReplays) "On" else "Off", 302 * scale, 85 * scale, selectedIndex == 5, frame)
-                renderReversed(window, if(project.novaConf.attract) "On" else "Off", 302 * scale, 98 * scale, selectedIndex == 6, frame)
+                renderReversed(window, if(project.novaConf.joyEnabled) "On" else "Off", 302 * scale, 72 * scale, selectedIndex == 2, frame)
+                renderReversed(window, if(project.novaConf.saveReplays) "On" else "Off", 302 * scale, 85 * scale, selectedIndex == 3, frame)
+                renderReversed(window, if(project.novaConf.attract) "On" else "Off", 302 * scale, 98 * scale, selectedIndex == 4, frame)
 
                 when(selectedIndex) {
                     0 -> window.showText("Set the location for DOSBox", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
@@ -68,6 +68,9 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
                 }
             }
             State.DOSBOXCONF -> {
+                if(selectedIndex < 0) selectedIndex = 2
+                if(selectedIndex > 2) selectedIndex = 0
+
                 renderText(window, "Is DOSBox Staging?", 18 * scale, 20 * scale, selectedIndex == 0, frame)
                 renderText(window, "Use My DOSBox Settings", 18 * scale, 33 * scale, selectedIndex == 1, frame)
                 renderText(window, "Custom DOSBox Conf Path", 18 * scale, 46 * scale, selectedIndex == 2, frame)
