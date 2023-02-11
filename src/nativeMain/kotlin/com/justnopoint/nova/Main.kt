@@ -231,6 +231,10 @@ fun executeCommandNative(executable: String, command: String): CPointer<PROCESS_
     return pi
 }
 
+actual fun showErrorPopup(title: String, message: String) {
+    tinyfd_messageBox(title, message, "ok", "error", 1)
+}
+
 val trainingKeyMapping = mapOf(
     VK_F1 to VIRT_F1,
     VK_F2 to VIRT_F2,

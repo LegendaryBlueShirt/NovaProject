@@ -22,15 +22,24 @@ abstract class NovaWindowSDL: NovaWindow {
 
     open fun init(): Boolean {
         if(SDL_Init(SDL_INIT_GAMECONTROLLER or SDL_INIT_VIDEO or SDL_INIT_JOYSTICK) != 0) {
-            error("SDL could not initialize! SDL_Error: ${SDL_GetError()}")
+            val error = SDL_GetError()
+            showErrorPopup("SDL could not initialize!", "SDL_Error: $error")
+            error("SDL could not initialize! SDL_Error: $error")
         }
 
         SDL_JoystickEventState(SDL_ENABLE)
         SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS,"1")
-        SDL_GameControllerAddMappingsFromRW(SDL_RWFromFile("gamecontrollerdb.txt", "rb"), 1)
+        try {
+            SDL_GameControllerAddMappingsFromRW(SDL_RWFromFile("gamecontrollerdb.txt", "rb"), 1)
+        } catch (e: Exception) {
+            showErrorPopup("Couldn't load gamecontrollerdb.txt", e.message?:"Unknown Error")
+            error("Couldn't load gamecontrollerdb.txt  ${e.message?:"Unknown Error"}")
+        }
 
         if((IMG_Init(IMG_INIT_PNG.toInt()) and IMG_INIT_PNG.toInt()) == 0) {
-            error("SDL_Image could not initialize! SDL_Error: ${IMG_GetError?.invoke()}")
+            val error = IMG_GetError?.invoke()
+            showErrorPopup("SDL_Image could not initialize!", "SDL_Error: $error")
+            error("SDL_Image could not initialize! SDL_Error: $error")
         }
 
         window = SDL_CreateWindow("Nova Project", SDL_WINDOWPOS_UNDEFINED.toInt(), SDL_WINDOWPOS_UNDEFINED.toInt(), 640, 400, 0)

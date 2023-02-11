@@ -1,20 +1,26 @@
 package com.justnopoint.nova
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.okio.decodeFromBufferedSource
+import kotlinx.serialization.json.okio.encodeToBufferedSink
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
 
 class NovaConf(private val location: Path) {
-    var dosboxPath = ""
-    var omfPath = ""
-    var confPath = ""
-    val p1Config = getDefaultP1Config()
-    val p2Config = getDefaultP2Config()
-    var joyEnabled = true
-    var saveReplays = false
-    var userConf = false
-    var stagingCompat = false
-    var attract = false
+    private var configuration = NovaConfFile(p1Config = getDefaultP1Config(), p2Config = getDefaultP2Config())
+
+    var dosboxPath: String by configuration::dosBoxPath
+    var omfPath: String by configuration::omfPath
+    var confPath: String by configuration::confPath
+    val p1Config: ControlMapping by configuration::p1Config
+    val p2Config: ControlMapping by configuration::p2Config
+    var joyEnabled: Boolean by configuration::joyEnabled
+    var saveReplays: Boolean by configuration::saveReplays
+    var userConf: Boolean by configuration::userConf
+    var stagingCompat: Boolean by configuration::stagingCompat
+    var attract: Boolean by configuration::attract
 
     var errors: List<String> = emptyList()
 
@@ -57,47 +63,24 @@ class NovaConf(private val location: Path) {
     }
 
     init {
-        val fs = FileSystem.SYSTEM
-        if(!fs.exists(location)) {
-            save()
-        }
-        fs.read(location) {
-            dosboxPath = readUtf8Line()?:""
-            omfPath = readUtf8Line()?:""
-            p1Config.esc = (readUtf8Line()?:"").toButtonMap()
-            p2Config.esc = (readUtf8Line()?:"").toButtonMap()
-            p1Config.up = (readUtf8Line()?:"").toButtonMap()
-            p1Config.down = (readUtf8Line()?:"").toButtonMap()
-            p1Config.left = (readUtf8Line()?:"").toButtonMap()
-            p1Config.right = (readUtf8Line()?:"").toButtonMap()
-            p1Config.punch = (readUtf8Line()?:"").toButtonMap()
-            p1Config.kick = (readUtf8Line()?:"").toButtonMap()
-            p2Config.up = (readUtf8Line()?:"").toButtonMap()
-            p2Config.down = (readUtf8Line()?:"").toButtonMap()
-            p2Config.left = (readUtf8Line()?:"").toButtonMap()
-            p2Config.right = (readUtf8Line()?:"").toButtonMap()
-            p2Config.punch = (readUtf8Line()?:"").toButtonMap()
-            p2Config.kick = (readUtf8Line()?:"").toButtonMap()
-            joyEnabled = (readUtf8Line()?:"true").toBoolean()
-            saveReplays = (readUtf8Line()?:"false").toBoolean()
-            userConf = (readUtf8Line()?:"false").toBoolean()
-            attract = (readUtf8Line()?:"false").toBoolean()
-            confPath = readUtf8Line()?:""
+        FileSystem.SYSTEM.apply {
+            if(!exists(location)) {
+                save()
+            }
+            try {
+                read(location) {
+                    configuration = Json.decodeFromBufferedSource(this)
+                }
+            } catch (e: Exception) {
+                showErrorPopup("Failed to load Settings", e.message?:"Unknown Error")
+                save()
+            }
         }
     }
 
     fun save() {
         FileSystem.SYSTEM.write(file = location, mustCreate = false) {
-            writeUtf8("$dosboxPath\n")
-            writeUtf8("$omfPath\n")
-            getBoundInputs(includeEsc = true).forEach { binding ->
-                writeUtf8("${binding.toNovaConf()}\n")
-            }
-            writeUtf8("$joyEnabled\n")
-            writeUtf8("$saveReplays\n")
-            writeUtf8("$userConf\n")
-            writeUtf8("$attract\n")
-            writeUtf8("$confPath\n")
+            Json.encodeToBufferedSink(configuration, this)
         }
     }
 
@@ -157,3 +140,17 @@ fun ButtonMap.toNovaConf(): String {
         }
     }
 }
+
+@Serializable
+data class NovaConfFile(
+    var dosBoxPath: String = "",
+    var omfPath: String = "",
+    var confPath: String = "",
+    val p1Config: ControlMapping,
+    val p2Config: ControlMapping,
+    var joyEnabled: Boolean = true,
+    var saveReplays: Boolean = false,
+    var userConf: Boolean = false,
+    var stagingCompat: Boolean = false,
+    var attract: Boolean = false
+)

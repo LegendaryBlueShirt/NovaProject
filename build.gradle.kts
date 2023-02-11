@@ -1,5 +1,6 @@
 plugins {
-    kotlin("multiplatform") version "1.7.20"
+    kotlin("multiplatform") version "1.8.0"
+    kotlin("plugin.serialization") version "1.8.0"
 }
 
 group = "org.example"
@@ -88,9 +89,11 @@ kotlin {
     }
 
     dependencies {
-        commonMainImplementation(platform("com.squareup.okio:okio-bom:3.2.0"))
+        commonMainImplementation(platform("com.squareup.okio:okio-bom:3.3.0"))
         commonMainImplementation("com.squareup.okio:okio")
         commonMainImplementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
+        commonMainImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.0-RC")
+        commonMainImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json-okio:1.5.0-RC")
     }
 }
 
