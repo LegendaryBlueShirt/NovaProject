@@ -7,7 +7,7 @@ fun loadPcx(path: Path): PCXImage? {
     return try {
         FileSystem.SYSTEM.read(file = path, readerAction = ::loadPcx)
     } catch (e: Exception) {
-        showErrorPopup("Error Loading $path", e.message?:"Unknown Error")
+        showErrorPopup("Error Loading \"$path\"", e.message?:"Unknown Error")
         PCXImage(ByteArray(320*200), UByteArray(768), 320, 200)
     }
 }

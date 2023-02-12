@@ -53,33 +53,60 @@ class NovaConf(private val location: Path) {
         if (boundInputs.distinct().size < boundInputs.size) {
             currentErrors.add("Duplicate inputs detected")
         }
-        val fs = FileSystem.SYSTEM
-        val pathToOmf = omfPath.toPath()
-        if (omfPath.isBlank() || !fs.exists(pathToOmf)) {
-            currentErrors.add("OMF location not configured!")
-        } else {
-            val omffiles = fs.list(pathToOmf)
-            val exec = omffiles.find { it.name.contains(other = "FILE0001.EXE", ignoreCase = true) }
-            val setup = omffiles.find { it.name.contains(other = OMFConf.SETUP, ignoreCase = true) }
-            val cfg = omffiles.find { it.name.contains(other = OMFConf.FILENAME, ignoreCase = true) }
-            if (exec == null || setup == null) {
-                currentErrors.add("Missing files in OMF location!")
-            } else if (cfg == null) {
-                currentErrors.add("OMF configuration missing, please run setup")
+        val missingFiles = validateOmfSetup()
+        when(missingFiles.size) {
+            0 -> { /* No-op */ }
+            4 -> {
+                currentErrors.add("OMF location not configured!")
+            }
+            else -> {
+                if(missingFiles.contains(SoundCard.FILENAME)) {
+                    currentErrors.add("Please run OMF setup!")
+                } else if(missingFiles.contains(OMFConf.FILENAME)) {
+                    currentErrors.add("OMF settings not found, run the game once.")
+                } else {
+                    currentErrors.add("Missing files in OMF location!")
+                }
             }
         }
-        val pathToDosbox = dosboxPath.toPath()
-        if (dosboxPath.isBlank() || !fs.exists(pathToDosbox)) {
-            currentErrors.add("DOSBox location not configured!")
-        } else if (!fs.metadata(pathToDosbox).isRegularFile) {
-            currentErrors.add("DOSBox location is not a file!")
-        }
 
-        if (confPath.isNotBlank() && !fs.exists(confPath.toPath())) {
+        validateDosbox()?.let(currentErrors::add)
+
+        if (confPath.isNotBlank() && !FileSystem.SYSTEM.exists(confPath.toPath())) {
             currentErrors.add("Custom configuration file is missing and will be ignored!")
         }
 
         errors = currentErrors
+    }
+
+    fun validateDosbox(): String? {
+        val fs = FileSystem.SYSTEM
+        val pathToDosbox = dosboxPath.toPath()
+        if (dosboxPath.isBlank() || !fs.exists(pathToDosbox)) {
+            return "DOSBox location not configured!"
+        } else if (!fs.metadata(pathToDosbox).isRegularFile) {
+            return "DOSBox location is not a file!"
+        }
+        return null
+    }
+
+    fun validateOmfSetup(): List<String> {
+        var missing = listOf(
+            "FILE0001.EXE",
+            OMFConf.SETUP,
+            OMFConf.FILENAME,
+            SoundCard.FILENAME
+        )
+        val fs = FileSystem.SYSTEM
+        val pathToOmf = omfPath.toPath()
+        if (omfPath.isNotBlank() && fs.exists(pathToOmf)) {
+            val omffiles = fs.list(pathToOmf)
+            missing = missing.filter { fileToCheck ->
+                val foundPath = omffiles.find { it.name.contains(other = fileToCheck, ignoreCase = true) }
+                foundPath == null
+            }
+        }
+        return missing
     }
 
     fun save() {

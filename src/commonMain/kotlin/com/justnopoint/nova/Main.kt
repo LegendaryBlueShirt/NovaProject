@@ -78,23 +78,23 @@ class NovaProject {
     fun startVs() {
         omfConfig?.let {
             writeOmfConfig(false)
-            startDosBox(saveReplays = novaConf.saveReplays, userconf = novaConf.userConf)
         }
+        startDosBox(saveReplays = novaConf.saveReplays, userconf = novaConf.userConf)
     }
 
     fun startNormal() {
         omfConfig?.let {
             writeOmfConfig(true)
-            startDosBox(mode = "advanced", saveReplays = novaConf.saveReplays, userconf = novaConf.userConf)
         }
+        startDosBox(mode = "advanced", saveReplays = novaConf.saveReplays, userconf = novaConf.userConf)
     }
 
     fun startTraining() {
         omfConfig?.let {
-            window.enableTraining()
             writeOmfConfig(false)
-            startDosBox(saveReplays = false, userconf = false)
         }
+        window.enableTraining()
+        startDosBox(saveReplays = false, userconf = false)
     }
 
     fun startSetup() {
@@ -161,6 +161,7 @@ class NovaProject {
     }
 
     fun dosBoxFinished() {
+        novaConf.checkErrors()
         gameRunning = false
         mainMenu.gameEnd()
         loadOmfConfig()
@@ -169,11 +170,15 @@ class NovaProject {
     private fun writeOmfConfig(singlePlayer: Boolean) {
         val configPath = novaConf.omfPath.toPath().div("SETUP.CFG")
         try {
-            FileSystem.SYSTEM.write(file = configPath, mustCreate = false) {
-                omfConfig?.buildFile(this, singlePlayer)
+            FileSystem.SYSTEM.apply {
+                if(exists(configPath)) {
+                    write(file = configPath, mustCreate = false) {
+                        omfConfig?.buildFile(this, singlePlayer)
+                    }
+                }
             }
         } catch (e: Exception) {
-            showErrorPopup("Couldn't write OMF configuration", e.message?:"Unknown Error")
+            showErrorPopup("Could not write OMF configuration", e.message?:"Unknown Error")
         }
     }
 

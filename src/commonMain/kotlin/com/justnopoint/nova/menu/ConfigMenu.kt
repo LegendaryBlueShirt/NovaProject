@@ -3,6 +3,7 @@ package com.justnopoint.nova.menu
 import com.justnopoint.nova.MenuFonts
 import com.justnopoint.nova.NovaProject
 import com.justnopoint.nova.NovaWindow
+import com.justnopoint.nova.OMFConf
 
 class ConfigMenu(project: NovaProject) : NovaMenu(project) {
     private var selectedIndex = 0
@@ -27,6 +28,15 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
         return project.omfConfig != null
     }
 
+    private fun canRunSetup(): Boolean {
+        val missingFiles = project.novaConf.validateOmfSetup()
+        return !missingFiles.contains(OMFConf.SETUP)
+    }
+
+    private fun canRunDosbox(): Boolean {
+        return project.novaConf.validateDosbox() == null
+    }
+
     override fun render(window: NovaWindow, frame: Int) {
         when(currentState) {
             State.MENU -> {
@@ -34,7 +44,7 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
                 if(selectedIndex > 2) selectedIndex = 0
 
                 renderText(window, "Nova Project Settings", 18 * scale, 20 * scale, selectedIndex == 0, frame)
-                renderText(window, "OMF2097 Settings", 18 * scale, 33 * scale, selectedIndex == 1, frame, !canConfigOmf())
+                renderText(window, "OMF2097 Settings", 18 * scale, 33 * scale, selectedIndex == 1, frame, !(canRunDosbox() && canRunSetup()))
                 renderText(window, "DOSBox Settings", 18 * scale, 46 * scale, selectedIndex == 2, frame)
 
                 when(selectedIndex) {
@@ -87,35 +97,39 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
                 }
             }
             State.OMFCONF -> {
-                if(selectedIndex < 0) selectedIndex = 5
-                if(selectedIndex > 5) selectedIndex = 0
+                if(selectedIndex < 0) selectedIndex = 6
+                if(selectedIndex > 6) selectedIndex = 0
 
-                renderText(window, "Hyper Mode", 18 * scale, 20 * scale, selectedIndex == 0, frame)
-                renderText(window, "Rehit Mode", 18 * scale, 33 * scale, selectedIndex == 1, frame)
-                renderText(window, "Stage Hazards", 18 * scale, 46 * scale, selectedIndex == 2, frame)
-                renderText(window, "Game Speed", 18 * scale, 59 * scale, selectedIndex == 3, frame)
-                renderText(window, "Player 1 Power", 18 * scale, 72 * scale, selectedIndex == 4, frame)
-                renderText(window, "Player 2 Power", 18 * scale, 85 * scale, selectedIndex == 5, frame)
+                renderText(window, "Run Setup", 18 * scale, 20 * scale, selectedIndex == 0, frame, !(canRunDosbox()&&canRunSetup()))
+                renderText(window, "Hyper Mode", 18 * scale, 33 * scale, selectedIndex == 1, frame, !canConfigOmf())
+                renderText(window, "Rehit Mode", 18 * scale, 46 * scale, selectedIndex == 2, frame, !canConfigOmf())
+                renderText(window, "Stage Hazards", 18 * scale, 59 * scale, selectedIndex == 3, frame, !canConfigOmf())
+                renderText(window, "Game Speed", 18 * scale, 72 * scale, selectedIndex == 4, frame, !canConfigOmf())
+                renderText(window, "Player 1 Power", 18 * scale, 85 * scale, selectedIndex == 5, frame, !canConfigOmf())
+                renderText(window, "Player 2 Power", 18 * scale, 98 * scale, selectedIndex == 6, frame, !canConfigOmf())
 
                 project.omfConfig?.apply {
                     val p1PowerString = "${1 / (2.25 - .25*p1power)}".take(5)
                     val p2PowerString = "${1 / (2.25 - .25*p2power)}".take(5)
-                    renderReversed(window, if (hyperMode) "On" else "Off", 302 * scale, 20 * scale, selectedIndex == 0, frame)
-                    renderReversed(window, if (rehitMode) "On" else "Off", 302 * scale, 33 * scale, selectedIndex == 1, frame)
-                    renderReversed(window, if (hazards) "On" else "Off", 302 * scale, 46 * scale, selectedIndex == 2, frame)
-                    renderReversed(window, "${speed*10}%", 302 * scale, 59 * scale, selectedIndex == 3, frame)
-                    renderReversed(window, "${p1PowerString}x", 302 * scale, 72 * scale, selectedIndex == 4, frame)
-                    renderReversed(window, "${p2PowerString}x", 302 * scale, 85 * scale, selectedIndex == 5, frame)
+                    renderReversed(window, if (hyperMode) "On" else "Off", 302 * scale, 33 * scale, selectedIndex == 1, frame)
+                    renderReversed(window, if (rehitMode) "On" else "Off", 302 * scale, 46 * scale, selectedIndex == 2, frame)
+                    renderReversed(window, if (hazards) "On" else "Off", 302 * scale, 59 * scale, selectedIndex == 3, frame)
+                    renderReversed(window, "${speed*10}%", 302 * scale, 72 * scale, selectedIndex == 4, frame)
+                    renderReversed(window, "${p1PowerString}x", 302 * scale, 85 * scale, selectedIndex == 5, frame)
+                    renderReversed(window, "${p2PowerString}x", 302 * scale, 98 * scale, selectedIndex == 6, frame)
                 }
 
-                when(selectedIndex) {
-                    0 -> window.showText("Allow some special moves to be performed in the air.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
-                    1 -> window.showText("Allow air juggle combos.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
-                    2 -> window.showText("Enable or disable stage hazards.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
-                    3 -> window.showText("You should leave this at 80% in most cases.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
-                    4 -> window.showText("A handicap modifier, you may want to lower this for training.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
-                    5 -> window.showText("A handicap modifier, you may want to lower this for training.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
+                val hintText = when (selectedIndex) {
+                    0 -> "Enter game setup, mandatory for fresh copies of OMF."
+                    1 -> "Allow some special moves to be performed in the air."
+                    2 -> "Allow air juggle combos."
+                    3 -> "Enable or disable stage hazards."
+                    4 -> "You should leave this at 80% in most cases."
+                    5 -> "A handicap modifier, you may want to lower this for training."
+                    6 -> "A handicap modifier, you may want to lower this for training."
+                    else -> ""
                 }
+                window.showText(hintText, MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
             }
         }
     }
@@ -148,14 +162,19 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
                 }
             }
             State.OMFCONF -> {
+                if(selectedIndex == 0) {
+                    if(canRunDosbox() && canRunSetup()) {
+                        project.startSetup()
+                    }
+                }
                 project.omfConfig?.apply {
                     when(selectedIndex) {
-                        0 -> hyperMode = !hyperMode
-                        1 -> rehitMode = !rehitMode
-                        2 -> hazards = !hazards
-                        3 -> speed = (speed + 1) % 11
-                        4 -> p1power = (p1power + 1)
-                        5 -> p2power = (p2power + 1)
+                        1 -> hyperMode = !hyperMode
+                        2 -> rehitMode = !rehitMode
+                        3 -> hazards = !hazards
+                        4 -> speed = (speed + 1) % 11
+                        5 -> p1power = (p1power + 1)
+                        6 -> p2power = (p2power + 1)
                     }
                 }
             }
@@ -172,7 +191,7 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
         when(selectedIndex) {
             0 -> currentState = State.NOVACONF
             1 -> {
-                if(canConfigOmf()) {
+                if((canRunSetup()&&canRunDosbox()) || canConfigOmf()) {
                     currentState = State.OMFCONF
                 } else {
                     return false
@@ -180,6 +199,7 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
             }
             2 -> currentState = State.DOSBOXCONF
         }
+        selectedIndex = 0
         return true
     }
 }

@@ -225,13 +225,15 @@ fun executeCommandNative(executable: String, command: String): CPointer<PROCESS_
             pi
         )
         if(result == 0) {
-            error("Couldn't start program $executable - Error ${GetLastError()}")
+            error("Could not start program $executable - Error ${GetLastError()}")
         }
     }
     return pi
 }
 
 actual fun showErrorPopup(title: String, message: String) {
+    println("Error title - $title")
+    println("Error message - $message")
     tinyfd_messageBox(title, message, "ok", "error", 1)
 }
 

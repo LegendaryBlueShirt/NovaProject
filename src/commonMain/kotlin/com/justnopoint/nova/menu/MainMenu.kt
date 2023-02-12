@@ -35,7 +35,12 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
     }
 
     private fun canPlay(): Boolean {
-        return project.novaConf.dosboxPath.isNotBlank() && (project.omfConfig!=null)
+        val dosboxErrors = project.novaConf.validateDosbox()
+        if(dosboxErrors != null) return false
+        val missingFiles = project.novaConf.validateOmfSetup()
+        if(missingFiles.contains("FILE0001.EXE")) return false
+        if(missingFiles.contains(SoundCard.FILENAME)) return false
+        return true
     }
 
     override fun render(window: NovaWindow, frame: Int) {
