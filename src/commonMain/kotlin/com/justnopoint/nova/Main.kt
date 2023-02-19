@@ -46,6 +46,9 @@ class NovaProject {
             } catch (e: Exception) {
                 showErrorPopup("Runtime Error", e.message?:"Unknown Error")
             }
+            doDummyPlayback()?.let { (button, up, _) ->
+                window.sendKeyEvent(button, up, false, true)
+            }
             currentFrameTime = getTimeMillis()
             nextFrameTime = (startFrameTime + (frameCount*millisPerFrame).toLong())
             if(currentFrameTime > nextFrameTime) {
@@ -71,7 +74,7 @@ class NovaProject {
                 mainMenu.handleInput(input)
             }
         } else {
-            window.sendKeyEvent(input, release)
+            window.sendKeyEvent(input, release, dummyActive)
         }
     }
 
@@ -269,7 +272,7 @@ interface NovaWindow {
     @OptIn(ExperimentalUnsignedTypes::class)
     fun loadTextureFromRaster(raster: UByteArray, width: Int, height: Int): Int
     fun showImage(textureHandle: Int, x: Int, y: Int)
-    fun sendKeyEvent(mappedButton: ButtonMap, up: Boolean)
+    fun sendKeyEvent(mappedButton: ButtonMap, up: Boolean, useDummy: Boolean, recorded: Boolean = false)
 }
 
 enum class ControlType {
@@ -324,3 +327,7 @@ data class ControlMapping(
     var kick: ButtonMap,
     var esc: ButtonMap
 )
+
+enum class OMFInput {
+    UP, DOWN, LEFT, RIGHT, PUNCH, KICK
+}

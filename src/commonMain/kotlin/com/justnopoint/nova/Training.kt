@@ -1,10 +1,14 @@
 package com.justnopoint.nova
 
+import kotlin.system.getTimeMillis
+
 fun getTrainingModeInput(code: Int) {
     when(code) {
         VIRT_F1 -> resetLeftSide()
         VIRT_F2 -> resetCenter()
         VIRT_F3 -> resetRightSide()
+        VIRT_F4 -> toggleDummyRecording()
+        VIRT_F5 -> recordingPlayback()
     }
 }
 
@@ -48,6 +52,56 @@ fun resetCharacters(hp: Boolean, stun: Boolean, state: Boolean) {
         writeMemoryByte(p2State, 11u)
     }
 }
+
+var dummyActive = false
+var recordingActive = false
+var dummyPlaybackIndex = -1
+var lastTimestamp = 0L
+val recordedInputs = mutableListOf<RecordedInput>()
+
+fun toggleDummyRecording() {
+    dummyPlaybackIndex = -1
+    if(recordingActive) {
+        dummyActive = false
+        recordingActive = false
+    } else {
+        dummyActive = true
+        recordingActive = true
+        lastTimestamp = getTimeMillis()
+        recordedInputs.clear()
+    }
+}
+
+fun recordingPlayback() {
+    println("Playback, ${recordedInputs.size} recorded inputs")
+    recordingActive = false
+    dummyActive = false
+    dummyPlaybackIndex = 0
+    lastTimestamp = getTimeMillis()
+}
+
+fun doDummyPlayback(): RecordedInput? {
+    if(dummyPlaybackIndex == -1) return null
+    val timestamp = getTimeMillis() - lastTimestamp
+    val move = recordedInputs[dummyPlaybackIndex]
+    return if(timestamp >= move.delay) {
+        dummyPlaybackIndex++
+        if(dummyPlaybackIndex == recordedInputs.size) {
+            dummyPlaybackIndex = -1
+            println("Playback finished")
+        }
+        move
+    } else {
+        null
+    }
+}
+
+fun recordInput(mappedButton: ButtonMap, up: Boolean) {
+    val timestamp = getTimeMillis() - lastTimestamp
+    recordedInputs.add(RecordedInput(mappedButton, up, timestamp))
+}
+
+data class RecordedInput(val mappedButton: ButtonMap, val up: Boolean, val delay: Long)
 
 expect fun readMemoryShort(address: Long): UShort
 expect fun readMemoryInt(address: Long): UInt
