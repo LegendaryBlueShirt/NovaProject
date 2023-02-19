@@ -17,6 +17,7 @@ expect fun getNativeWindow(): NovaWindow?
 
 expect fun showErrorPopup(title: String, message: String)
 
+var trainingMode = false
 class NovaProject {
     private var quit = false
     private lateinit var window: NovaWindow
@@ -96,7 +97,8 @@ class NovaProject {
         omfConfig?.let {
             writeOmfConfig(false)
         }
-        window.enableTraining()
+        trainingMode = true
+        setTrainingInputs(novaConf.trainingConfig)
         startDosBox(saveReplays = false, userconf = false)
     }
 
@@ -164,6 +166,7 @@ class NovaProject {
     }
 
     fun dosBoxFinished() {
+        trainingMode = false
         novaConf.checkErrors()
         gameRunning = false
         mainMenu.gameEnd()
@@ -265,7 +268,6 @@ interface NovaWindow {
     fun showFolderChooser(start: String, prompt: String): String
     fun setJoystickEnabled(joyEnabled: Boolean)
     fun destroy()
-    fun enableTraining()
     fun loadFont(fontMapping: OmfFont, textureHandle: Int): Int
     fun loadTexture(image: PCXImage): Int
     fun loadTexturePng(path: String): Int
@@ -326,6 +328,12 @@ data class ControlMapping(
     var punch: ButtonMap,
     var kick: ButtonMap,
     var esc: ButtonMap
+)
+
+@Serializable
+data class TrainingMapping(
+    var record: ButtonMap,
+    var playback: ButtonMap
 )
 
 enum class OMFInput {

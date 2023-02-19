@@ -7,8 +7,15 @@ fun getTrainingModeInput(code: Int) {
         VIRT_F1 -> resetLeftSide()
         VIRT_F2 -> resetCenter()
         VIRT_F3 -> resetRightSide()
-        VIRT_F4 -> toggleDummyRecording()
-        VIRT_F5 -> recordingPlayback()
+    }
+}
+
+fun getTrainingModeButton(input: ButtonMap) {
+    mapping?.apply {
+        when (input) {
+            record -> toggleDummyRecording()
+            playback -> recordingPlayback()
+        }
     }
 }
 
@@ -58,6 +65,7 @@ var recordingActive = false
 var dummyPlaybackIndex = -1
 var lastTimestamp = 0L
 val recordedInputs = mutableListOf<RecordedInput>()
+var mapping: TrainingMapping? = null
 
 fun toggleDummyRecording() {
     dummyPlaybackIndex = -1
@@ -94,6 +102,10 @@ fun doDummyPlayback(): RecordedInput? {
     } else {
         null
     }
+}
+
+fun setTrainingInputs(trainingMapping: TrainingMapping) {
+    mapping = trainingMapping
 }
 
 fun recordInput(mappedButton: ButtonMap, up: Boolean) {

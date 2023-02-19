@@ -138,6 +138,9 @@ abstract class NovaWindowSDL: NovaWindow {
                                 name = "Joy $controller Axis ${event.id} ${if(event.direction == -1) "-" else "+"}"
                             )
                             project.handleInput(input, event.release)
+                            if(trainingMode && !event.release) {
+                                getTrainingModeButton(input)
+                            }
                         }
                         ControlType.HAT -> {
                             val input = ButtonMap(
@@ -148,6 +151,9 @@ abstract class NovaWindowSDL: NovaWindow {
                                 name = "Joy $controller Hat ${event.id} ${event.direction}"
                             )
                             project.handleInput(input, event.release)
+                            if(trainingMode && !event.release) {
+                                getTrainingModeButton(input)
+                            }
                         }
                         ControlType.BUTTON -> {
                             val input = ButtonMap(
@@ -157,6 +163,9 @@ abstract class NovaWindowSDL: NovaWindow {
                                 direction = event.direction,
                                 name = "Joy $controller Button ${event.id}")
                             project.handleInput(input, event.release)
+                            if(trainingMode && !event.release) {
+                                getTrainingModeButton(input)
+                            }
                         }
                         else -> {}
                     }

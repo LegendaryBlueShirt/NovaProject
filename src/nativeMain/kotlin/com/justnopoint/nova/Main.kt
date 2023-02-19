@@ -16,7 +16,6 @@ actual fun getNativeWindow(): NovaWindow? {
 
 var processInfo: CPointer<PROCESS_INFORMATION>? = null
 val processExitCode = MemScope().alloc<DWORDVar>()
-var trainingMode = false
 
 class Win32Container: NovaWindowSDL() {
     //* Training Mode Input Handling *//
@@ -35,10 +34,6 @@ class Win32Container: NovaWindowSDL() {
         return super.init()
     }
 
-    override fun enableTraining() {
-        trainingMode = true
-    }
-
     override fun destroy() {
         UnhookWindowsHookEx(trainingHook)
     }
@@ -55,7 +50,6 @@ class Win32Container: NovaWindowSDL() {
                 CloseHandle(it.hThread)
                 processInfo = null
                 entryPointer = 0L
-                trainingMode = false
                 project.dosBoxFinished()
             } else if(entryPointer == 0L) {
                 entryPointer = getBaseAddress(it.hProcess)
@@ -170,8 +164,9 @@ fun handleWinKey(keyPtr: Long) {
         if (processExitCode.value == STILL_ACTIVE) {
             keyPtr.toCPointer<tagKBDLLHOOKSTRUCT>()?.let { keyHook ->
                 val key = keyHook.pointed
-                trainingKeyMapping[key.vkCode.toInt()]?.let {
-                    getTrainingModeInput(it)
+                val index = sdlKeyMapping.values.indexOf(key.vkCode.toUShort())
+                if(index != -1) {
+                    getTrainingModeInput(sdlKeyMapping.keys.elementAt(index))
                 }
             }
         }
@@ -274,9 +269,7 @@ actual fun showErrorPopup(title: String, message: String) {
 val trainingKeyMapping = mapOf(
     VK_F1 to VIRT_F1,
     VK_F2 to VIRT_F2,
-    VK_F3 to VIRT_F3,
-    VK_F4 to VIRT_F4,
-    VK_F5 to VIRT_F5
+    VK_F3 to VIRT_F3
 )
 
 val sdlKeyMapping = mapOf(
