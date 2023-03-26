@@ -1,7 +1,7 @@
 package com.justnopoint.nova
 
 import kotlinx.cinterop.*
-import platform.posix.wchar_tVar
+import platform.posix.*
 import platform.windows.*
 import tinyfiledialogs.*
 
@@ -16,6 +16,7 @@ actual fun getNativeWindow(): NovaWindow? {
 
 var processInfo: CPointer<PROCESS_INFORMATION>? = null
 val processExitCode = MemScope().alloc<DWORDVar>()
+var logFile: CPointer<FILE>? = null
 
 class Win32Container: NovaWindowSDL() {
     //* Training Mode Input Handling *//
@@ -29,12 +30,21 @@ class Win32Container: NovaWindowSDL() {
 
 
     override fun init(): Boolean {
+        if(!debug) {
+            logFile = freopen("logfile.txt", "a", stdout)
+            _dup2(1, 2)
+        }
+
         trainingHook = SetWindowsHookEx?.invoke(WH_KEYBOARD_LL, winKeyHook, null, 0u)
 
         return super.init()
     }
 
     override fun destroy() {
+        if(!debug) {
+            fclose(logFile)
+        }
+
         UnhookWindowsHookEx(trainingHook)
     }
 
@@ -239,7 +249,11 @@ fun getBaseAddress(handle: HANDLE?): Long {
 fun executeCommandNative(executable: String, command: String): CPointer<PROCESS_INFORMATION> {
     val pi = MemScope().alloc<PROCESS_INFORMATION>().ptr
     memScoped {
-        val si = alloc<STARTUPINFO>().ptr
+        val si = alloc<STARTUPINFO>()
+        si.dwFlags = si.dwFlags or STARTF_USESTDHANDLES.toUInt()
+        si.hStdInput = null
+        si.hStdError = stderr
+        si.hStdOutput = stdout
 
         val result = CreateProcess?.invoke(
             executable.wcstr.ptr,
@@ -250,7 +264,7 @@ fun executeCommandNative(executable: String, command: String): CPointer<PROCESS_
             0u,
             null,
             null,
-            si,
+            si.ptr,
             pi
         )
         if(result == 0) {
@@ -260,9 +274,26 @@ fun executeCommandNative(executable: String, command: String): CPointer<PROCESS_
     return pi
 }
 
+val time: SYSTEMTIME = MemScope().alloc()
+actual fun writeLog(message: String) {
+    if(debug) {
+        println(message)
+    } else {
+        GetSystemTime(time.ptr)
+        val formattedTime =
+            "[${time.wMonth}-${time.wDay}-${time.wYear} ${time.wHour}:${time.wMinute}:${time.wSecond}] $message\n"
+        fprintf(stdout, formattedTime)
+    }
+}
 actual fun showErrorPopup(title: String, message: String) {
-    println("Error title - $title")
-    println("Error message - $message")
+    if(debug) {
+        println("$title - $message")
+    } else {
+        GetSystemTime(time.ptr)
+        val formattedTime =
+            "[${time.wMonth}-${time.wDay}-${time.wYear} ${time.wHour}:${time.wMinute}:${time.wSecond}] $title - $message\n"
+        fprintf(stderr, formattedTime)
+    }
     tinyfd_messageBox(title, message, "ok", "error", 1)
 }
 

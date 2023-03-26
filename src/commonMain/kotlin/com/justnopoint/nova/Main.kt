@@ -9,6 +9,7 @@ import kotlin.system.getTimeMillis
 
 fun main() {
     getNativeWindow()?.let {
+        writeLog("Starting Nova")
         NovaProject().runLoop(it)
     }
 }
@@ -17,6 +18,9 @@ expect fun getNativeWindow(): NovaWindow?
 
 expect fun showErrorPopup(title: String, message: String)
 
+expect fun writeLog(message: String)
+
+val debug = false
 var trainingMode = false
 class NovaProject {
     private var quit = false
@@ -166,6 +170,7 @@ class NovaProject {
     }
 
     fun dosBoxFinished() {
+        writeLog("DOSBox has terminated")
         trainingMode = false
         novaConf.checkErrors()
         gameRunning = false
@@ -181,6 +186,7 @@ class NovaProject {
                     write(file = configPath, mustCreate = false) {
                         omfConfig?.buildFile(this, singlePlayer)
                     }
+                    writeLog("OMF configuration written")
                 }
             }
         } catch (e: Exception) {
@@ -234,7 +240,10 @@ class NovaProject {
         val configPath = novaConf.omfPath.toPath().div(OMFConf.FILENAME)
         val fs = FileSystem.SYSTEM
         if (fs.exists(configPath)) {
+            writeLog("OMF configuration loaded")
             omfConfig = fs.read(file = configPath, readerAction = ::OMFConf)
+        } else {
+            writeLog("OMF configuration not found, skipping")
         }
     }
 

@@ -114,6 +114,7 @@ class NovaConf(private val location: Path) {
         FileSystem.SYSTEM.write(file = location, mustCreate = false) {
             Json.encodeToBufferedSink(configuration, this)
         }
+        writeLog("Nova configuration saved")
     }
 
     fun getBoundInputs(includeEsc: Boolean = false): List<ButtonMap> {

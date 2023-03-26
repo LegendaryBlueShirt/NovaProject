@@ -83,6 +83,9 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
     }
 
     override fun handleInput(input: ButtonMap) {
+        if(debug) {
+            writeLog(input.toString())
+        }
         idleCounter = 0
 
         when(currentState) {
