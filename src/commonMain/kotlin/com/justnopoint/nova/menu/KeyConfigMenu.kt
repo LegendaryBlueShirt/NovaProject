@@ -29,16 +29,30 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
                 window.showText("Set your in-game controls.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
             }
             KeyConfigState.TRAININGAWAIT, KeyConfigState.TRAININGCONFIG -> {
-                if(selectedIndex < 0) selectedIndex = 1
-                if(selectedIndex > 1) selectedIndex = 0
+                if(selectedIndex < 0) selectedIndex = 4
+                if(selectedIndex > 4) selectedIndex = 0
                 renderText(window, "Dummy Record", 18 * scale, 20 * scale, selectedIndex == 0, frame)
                 renderText(window, "Dummy Playback", 18 * scale, 33 * scale, selectedIndex == 1, frame)
+                renderText(window, "Reset", 18 * scale, 46 * scale, selectedIndex == 2, frame)
+                renderText(window, "Reset (Left)", 18 * scale, 59 * scale, selectedIndex == 3, frame)
+                renderText(window, "Reset (Right)", 18 * scale, 72 * scale, selectedIndex == 4, frame)
 
                 project.novaConf.trainingConfig.apply {
-                    listOf(record, playback).forEachIndexed { index, control ->
-                        val showRed = currentState == KeyConfigState.AWAIT && selectedIndex == index
-                        renderText(window, "${control.name}", 150 * scale, (20 + 13*index) * scale, selectedIndex == index, frame, showRed)
-                    }
+                    listOf(record, playback, resetCenter, resetLeft, resetRight)
+                        .forEachIndexed { index, control ->
+                            if(control != null) {
+                                val showRed = currentState == KeyConfigState.AWAIT && selectedIndex == index
+                                renderText(
+                                    window,
+                                    "${control.name}",
+                                    150 * scale,
+                                    (20 + 13 * index) * scale,
+                                    selectedIndex == index,
+                                    frame,
+                                    showRed
+                                )
+                            }
+                        }
                 }
 
                 if(currentState == KeyConfigState.TRAININGAWAIT) {
@@ -86,6 +100,9 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
                 when(configKey) {
                     0 -> project.novaConf.trainingConfig.record = input
                     1 -> project.novaConf.trainingConfig.playback = input
+                    2 -> project.novaConf.trainingConfig.resetCenter = input
+                    3 -> project.novaConf.trainingConfig.resetLeft = input
+                    4 -> project.novaConf.trainingConfig.resetRight = input
                 }
                 currentState = KeyConfigState.TRAININGCONFIG
             }
@@ -135,6 +152,9 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
                 when (selectedIndex) {
                     0 -> project.novaConf.trainingConfig.record = map
                     1 -> project.novaConf.trainingConfig.playback = map
+                    2 -> project.novaConf.trainingConfig.resetCenter = map
+                    3 -> project.novaConf.trainingConfig.resetLeft = map
+                    4 -> project.novaConf.trainingConfig.resetRight = map
                 }
             }
             else -> {}

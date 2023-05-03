@@ -183,6 +183,10 @@ fun handleWinKey(keyPtr: Long) {
     }
 }
 
+actual fun readMemoryByte(address: Long): UByte {
+    readMemoryValue(address, bytePointer.ptr, 1u)
+    return bytePointer.value
+}
 actual fun readMemoryShort(address: Long): UShort {
     readMemoryValue(address, shortPointer.ptr, 2u)
     return shortPointer.value
@@ -216,6 +220,19 @@ actual fun writeMemoryInt(address: Long, value: UInt) {
     intPointer.value = value
     writeMemoryValue(address, intPointer.ptr, 4u)
 }
+
+actual fun writeMemoryString(address: Long, value: String, limit: Int) {
+    var charactersWritten = 0
+    value.utf8.getBytes().take(limit).forEach { byte ->
+        writeMemoryByte(address + charactersWritten, byte.toUByte())
+        charactersWritten++
+    }
+    while(charactersWritten < limit) {
+        writeMemoryByte(address + charactersWritten, 0u)
+        charactersWritten++
+    }
+}
+
 fun writeMemoryValue(offset: Long, input: CPointer<out CPointed>, inputSize: ULong) {
     if(entryPointer == 0L) return
     val result = WriteProcessMemory(

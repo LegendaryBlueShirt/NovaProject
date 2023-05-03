@@ -20,7 +20,7 @@ expect fun showErrorPopup(title: String, message: String)
 
 expect fun writeLog(message: String)
 
-val debug = false
+val debug = true
 var trainingMode = false
 class NovaProject {
     private var quit = false
@@ -39,6 +39,8 @@ class NovaProject {
     private val millisPerFrame = 1000.0 / 60
 
     private var gameRunning = false
+    private var matchStarted = false
+    private var vsScreen = false
 
     fun runLoop(window: NovaWindow) {
         onStart(window)
@@ -63,6 +65,30 @@ class NovaProject {
                 frameCount++
                 if(frameCount < 0) {
                     frameCount = 0
+                }
+                if(gameRunning) {
+                    if (!matchStarted) {
+                        if (isMatchStarted()) {
+                            matchStarted = true
+                            matchStarted()
+                        }
+                    } else {
+                        if (!isMatchStarted()) {
+                            matchStarted = false
+                        } else {
+                            duringMatch()
+                        }
+                    }
+                    if (!vsScreen) {
+                        if (isVsScreen()) {
+                            vsScreenStarted()
+                            vsScreen = true
+                        }
+                    } else {
+                        if (!isVsScreen()) {
+                            vsScreen = false
+                        }
+                    }
                 }
             }
         }
@@ -117,6 +143,7 @@ class NovaProject {
             if(novaConf.userConf) "-userconf" else null,
             if(hasCustomConf) "-conf \"${novaConf.confPath}\"" else null,
             "-noconsole",
+            "-noautoexec",
             "-conf \"$dosboxConfPath\"",
             "-c \"mount c ${novaConf.omfPath}\"",
             "-c \"c:\"",
@@ -152,6 +179,7 @@ class NovaProject {
             if(userconf) "-userconf" else null,
             if(hasCustomConf) "-conf \"${novaConf.confPath}\"" else null,
             "-noconsole",
+            "-noautoexec",
             "-conf \"$dosboxConfPath\"",
             "-c \"mount c ${novaConf.omfPath}\"",
             "-c \"c:\"",
@@ -167,6 +195,40 @@ class NovaProject {
 //                println(buffer.readUtf8Line())
 //            }
 //        }
+    }
+
+    fun vsScreenStarted() {
+        p1struct.ptrAddr = readMemoryInt(p1PilotPointer).toLong()
+        p2struct.ptrAddr = readMemoryInt(p2PilotPointer).toLong()
+
+//        for(n in 0 until 11) {
+//            writeMemoryByte(p1struct.enchancementLevel + n, 3u)
+//            writeMemoryByte(p2struct.enchancementLevel + n, 3u)
+//        }
+//
+//        writeMemoryString(p1struct.name, "Yo", 18)
+//        writeMemoryString(p2struct.name, "Mama", 18)
+    }
+
+    fun matchStarted() {
+
+    }
+
+    fun duringMatch() {
+//        val savedR = readMemoryByte(video.palette+3)
+//        val savedG = readMemoryByte(video.palette+4)
+//        val savedB = readMemoryByte(video.palette+5)
+//        for(c in 2 until 48) {
+//            val red = readMemoryByte(video.palette+c*3)
+//            val green = readMemoryByte(video.palette+c*3+1)
+//            val blue = readMemoryByte(video.palette+c*3+2)
+//            writeMemoryByte(video.palette+(c-1)*3, red)
+//            writeMemoryByte(video.palette+(c-1)*3+1, green)
+//            writeMemoryByte(video.palette+(c-1)*3+2, blue)
+//        }
+//        writeMemoryByte(video.palette+47*3, savedR)
+//        writeMemoryByte(video.palette+47*3+1, savedG)
+//        writeMemoryByte(video.palette+47*3+2, savedB)
     }
 
     fun dosBoxFinished() {
@@ -328,22 +390,23 @@ fun String.toButtonMap(): ButtonMap {
     }
 }
 
-@Serializable
-data class ControlMapping(
-    var up: ButtonMap,
-    var down: ButtonMap,
-    var left: ButtonMap,
-    var right: ButtonMap,
-    var punch: ButtonMap,
-    var kick: ButtonMap,
-    var esc: ButtonMap
-)
+class ControlMapping(map: MutableMap<String, ButtonMap>) {
+    var up by map
+    var down by map
+    var left by map
+    var right by map
+    var punch by map
+    var kick by map
+    var esc by map
+}
 
-@Serializable
-data class TrainingMapping(
-    var record: ButtonMap,
-    var playback: ButtonMap
-)
+class TrainingMapping(map: MutableMap<String, ButtonMap>) {
+    var resetLeft by map
+    var resetRight by map
+    var resetCenter by map
+    var record by map
+    var playback by map
+}
 
 enum class OMFInput {
     UP, DOWN, LEFT, RIGHT, PUNCH, KICK
