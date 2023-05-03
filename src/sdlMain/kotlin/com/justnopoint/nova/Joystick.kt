@@ -9,15 +9,15 @@ class Joystick(private val controllerId: Int, private val controller: CPointer<S
     private val hats: Map<UByte, Hat>
 
     init {
-        println("Creating joystick $controllerId")
+        writeLog("Creating joystick $controllerId")
         val nButtons = SDL_JoystickNumButtons(controller)
-        println("Found $nButtons buttons")
+        writeLog("Found $nButtons buttons")
         buttons = (0 until nButtons).associate { it.toUByte() to Button(it, false) }
         val nAxes = SDL_JoystickNumAxes(controller)
-        println("Found $nAxes axes")
+        writeLog("Found $nAxes axes")
         axes = (0 until nAxes).associate { it.toUByte() to Axis(it, 0) }
         val nHats = SDL_JoystickNumHats(controller)
-        println("Found $nHats hats")
+        writeLog("Found $nHats hats")
         hats = (0 until nHats).associate { it.toUByte() to Hat(it, 0) }
     }
 
@@ -80,7 +80,7 @@ class Joystick(private val controllerId: Int, private val controller: CPointer<S
 
     override fun close() {
         if (SDL_JoystickGetAttached(controller) != 0u) {
-            println("Closing joystick $controllerId")
+            writeLog("Closing joystick $controllerId")
             SDL_JoystickClose(controller)
         }
     }

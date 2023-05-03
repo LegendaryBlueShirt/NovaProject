@@ -21,6 +21,7 @@ abstract class NovaWindowSDL: NovaWindow {
     private val joysticks = mutableListOf<Input>()
 
     open fun init(): Boolean {
+        writeLog("Initializing SDL")
         if(SDL_Init(SDL_INIT_GAMECONTROLLER or SDL_INIT_VIDEO or SDL_INIT_JOYSTICK) != 0) {
             val error = SDL_GetError()
             showErrorPopup("SDL could not initialize!", "SDL_Error: $error")
@@ -29,6 +30,7 @@ abstract class NovaWindowSDL: NovaWindow {
 
         SDL_JoystickEventState(SDL_ENABLE)
         SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS,"1")
+        writeLog("Initializing controller mappings")
         try {
             SDL_GameControllerAddMappingsFromRW(SDL_RWFromFile("gamecontrollerdb.txt", "rb"), 1)
         } catch (e: Exception) {
@@ -36,6 +38,7 @@ abstract class NovaWindowSDL: NovaWindow {
             error("Couldn't load gamecontrollerdb.txt  ${e.message?:"Unknown Error"}")
         }
 
+        writeLog("Initializing SDL_Image")
         if((IMG_Init(IMG_INIT_PNG.toInt()) and IMG_INIT_PNG.toInt()) == 0) {
             val error = IMG_GetError?.invoke()
             showErrorPopup("SDL_Image could not initialize!", "SDL_Error: $error")
@@ -88,8 +91,9 @@ abstract class NovaWindowSDL: NovaWindow {
                 SDL_JOYDEVICEADDED -> {
                     if(joyEnabled) {
                         val id = event.jdevice.which
+                        writeLog("SDL detected new device id:$id")
                         if(joysticks.find { it.getDeviceId() == id } != null) {
-                            println("Deduped.")
+                            writeLog("Deduped.")
                         } else {
                             if (SDL_IsGameController(id) == SDL_TRUE) {
                                 Controller.open(id)?.let {
@@ -106,6 +110,7 @@ abstract class NovaWindowSDL: NovaWindow {
                 SDL_CONTROLLERDEVICEREMOVED -> {
                     if(joyEnabled) {
                         val instanceId = event.cdevice.which
+                        writeLog("SDL detected controller removed instanceId:$instanceId")
                         joysticks.find { it.getCurrentId() == instanceId }?.let {
                             it.close()
                             joysticks.remove(it)
@@ -115,6 +120,7 @@ abstract class NovaWindowSDL: NovaWindow {
                 SDL_JOYDEVICEREMOVED -> {
                     if(joyEnabled) {
                         val instanceId = event.jdevice.which
+                        writeLog("SDL detected joystick removed instanceId:$instanceId")
                         joysticks.find { it.getCurrentId() == instanceId }?.let {
                             it.close()
                             joysticks.remove(it)
@@ -138,6 +144,9 @@ abstract class NovaWindowSDL: NovaWindow {
                                 name = "Joy $controller Axis ${event.id} ${if(event.direction == -1) "-" else "+"}"
                             )
                             project.handleInput(input, event.release)
+                            if(trainingMode && !event.release) {
+                                getTrainingModeButton(input)
+                            }
                         }
                         ControlType.HAT -> {
                             val input = ButtonMap(
@@ -148,6 +157,9 @@ abstract class NovaWindowSDL: NovaWindow {
                                 name = "Joy $controller Hat ${event.id} ${event.direction}"
                             )
                             project.handleInput(input, event.release)
+                            if(trainingMode && !event.release) {
+                                getTrainingModeButton(input)
+                            }
                         }
                         ControlType.BUTTON -> {
                             val input = ButtonMap(
@@ -157,6 +169,9 @@ abstract class NovaWindowSDL: NovaWindow {
                                 direction = event.direction,
                                 name = "Joy $controller Button ${event.id}")
                             project.handleInput(input, event.release)
+                            if(trainingMode && !event.release) {
+                                getTrainingModeButton(input)
+                            }
                         }
                         else -> {}
                     }

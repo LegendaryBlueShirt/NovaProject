@@ -10,20 +10,20 @@ class Controller(private val controllerId: Int, private val controller: CPointer
 
     private val events = ArrayDeque<ControllerEvent>()
     init {
-        println("Creating controller $controllerId")
+        writeLog("Creating controller $controllerId")
         val joy = SDL_GameControllerGetJoystick(controller)
         val nButtons = SDL_JoystickNumButtons(joy)
-        println("Found $nButtons buttons")
+        writeLog("Found $nButtons buttons")
         buttons[SDL_CONTROLLER_BUTTON_DPAD_UP.toUByte()] = Button(SDL_CONTROLLER_BUTTON_DPAD_UP, false)
         buttons[SDL_CONTROLLER_BUTTON_DPAD_DOWN.toUByte()] = Button(SDL_CONTROLLER_BUTTON_DPAD_DOWN, false)
         buttons[SDL_CONTROLLER_BUTTON_DPAD_LEFT.toUByte()] = Button(SDL_CONTROLLER_BUTTON_DPAD_LEFT, false)
         buttons[SDL_CONTROLLER_BUTTON_DPAD_RIGHT.toUByte()] = Button(SDL_CONTROLLER_BUTTON_DPAD_RIGHT, false)
         //buttons = (0 until nButtons).associate { it.toUByte() to Button(it, false) }
         val nAxes = SDL_JoystickNumAxes(joy)
-        println("Found $nAxes axes")
+        writeLog("Found $nAxes axes")
         axes = (0 until nAxes).associate { it.toUByte() to Axis(it, 0) }
         val nHats = SDL_JoystickNumHats(joy)
-        println("Found $nHats hats")
+        writeLog("Found $nHats hats")
         hats = (0 until nHats).associate { it.toUByte() to Hat(it, 0) }
     }
 
@@ -33,10 +33,10 @@ class Controller(private val controllerId: Int, private val controller: CPointer
         SDL_CONTROLLER_BUTTON_DPAD_LEFT.toUByte() to 8,
         SDL_CONTROLLER_BUTTON_DPAD_RIGHT.toUByte() to 2)
     override fun updateControllerButton(event: SDL_Event) {
-        val buttonEvent = event.cbutton
-        if(!buttons.containsKey(buttonEvent.button)) {
-            buttons[buttonEvent.button] = Button(buttonEvent.button.toInt(), buttonEvent.state.toInt() == SDL_RELEASED)
-        }
+//        val buttonEvent = event.cbutton
+//        if(!buttons.containsKey(buttonEvent.button)) {
+//            buttons[buttonEvent.button] = Button(buttonEvent.button.toInt(), buttonEvent.state.toInt() == SDL_RELEASED)
+//        }
 
         val button = event.cbutton.button
         //println("Got event for button $button")
@@ -79,12 +79,22 @@ class Controller(private val controllerId: Int, private val controller: CPointer
     }
 
     override fun updateControllerHat(event: SDL_Event) {
-        TODO("Not yet implemented")
+//        val hatId = event.jhat.hat
+//        val dir = event.jhat.value.toInt()
+//        hats[hatId]?.let {
+//            val changed = it.direction xor dir
+//            listOf(SDL_HAT_UP, SDL_HAT_DOWN, SDL_HAT_LEFT, SDL_HAT_RIGHT).forEach { cardinalDir ->
+//                if(changed and cardinalDir == cardinalDir) {
+//                    events.addLast(ControllerEvent(ControlType.HAT, hatId.toInt(), cardinalDir, dir and cardinalDir == 0))
+//                }
+//            }
+//            it.direction = dir
+//        }
     }
 
     override fun close() {
         if (SDL_GameControllerGetAttached(controller) != 0u) {
-            println("Closing controller $controllerId")
+            writeLog("Closing controller $controllerId")
             SDL_GameControllerClose(controller)
         }
     }

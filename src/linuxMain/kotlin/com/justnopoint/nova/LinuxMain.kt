@@ -9,6 +9,9 @@ actual fun getNativeWindow(): NovaWindow? {
     }
 }
 
+actual fun writeLog(message: String) {
+    TODO()
+}
 actual fun showErrorPopup(title: String, message: String) {
     TODO()
 }
@@ -18,7 +21,7 @@ class LinuxContainer: NovaWindowSDL() {
         TODO("Not yet implemented")
     }
 
-    override fun showFileChooser(start: String, prompt: String): String {
+    override fun showFileChooser(start: String, prompt: String, filter: String, filterDesc: String): String {
         TODO("Not yet implemented")
     }
 
@@ -30,7 +33,7 @@ class LinuxContainer: NovaWindowSDL() {
 
     }
 
-    override fun enableTraining() {
+    override fun sendKeyEvent(mappedButton: ButtonMap, up: Boolean, useDummy: Boolean, recorded: Boolean) {
         TODO("Not yet implemented")
     }
 }

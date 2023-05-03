@@ -10,14 +10,28 @@ import okio.Path.Companion.toPath
 
 class NovaConf(private val location: Path) {
     private val configuration: NovaConfFile
+    private val json = Json {
+        prettyPrint = true
+        explicitNulls = false
+    }
 
     init {
-        var readConfiguration = NovaConfFile(p1Config = getDefaultP1Config(), p2Config = getDefaultP2Config())
+        var readConfiguration = NovaConfFile()
         FileSystem.SYSTEM.apply {
             if(exists(location)) {
                 try {
                     read(location) {
-                        readConfiguration = Json.decodeFromBufferedSource(this)
+                        val defaultConfiguration = readConfiguration
+                        readConfiguration = json.decodeFromBufferedSource(this)
+                        defaultConfiguration.trainingConfig.forEach { (key, value) ->
+                            readConfiguration.trainingConfig.getOrPut(key) { value }
+                        }
+                        defaultConfiguration.p1Config.forEach { (key, value) ->
+                            readConfiguration.p1Config.getOrPut(key) { value }
+                        }
+                        defaultConfiguration.p2Config.forEach { (key, value) ->
+                            readConfiguration.p2Config.getOrPut(key) { value }
+                        }
                     }
                 } catch (e: Exception) {
                     showErrorPopup("Failed to load Settings", e.message ?: "Unknown Error")
@@ -31,8 +45,9 @@ class NovaConf(private val location: Path) {
     var dosboxPath: String by configuration::dosBoxPath
     var omfPath: String by configuration::omfPath
     var confPath: String by configuration::confPath
-    val p1Config: ControlMapping by configuration::p1Config
-    val p2Config: ControlMapping by configuration::p2Config
+    val p1Config: ControlMapping get() = ControlMapping(configuration.p1Config)
+    val p2Config: ControlMapping get() = ControlMapping(configuration.p2Config)
+    val trainingConfig: TrainingMapping get() = TrainingMapping(configuration.trainingConfig)
     var joyEnabled: Boolean by configuration::joyEnabled
     var saveReplays: Boolean by configuration::saveReplays
     var userConf: Boolean by configuration::userConf
@@ -110,9 +125,11 @@ class NovaConf(private val location: Path) {
     }
 
     fun save() {
+        FileSystem.SYSTEM.delete(path = location, mustExist = false)
         FileSystem.SYSTEM.write(file = location, mustCreate = false) {
-            Json.encodeToBufferedSink(configuration, this)
+            json.encodeToBufferedSink(configuration, this)
         }
+        writeLog("Nova configuration saved")
     }
 
     fun getBoundInputs(includeEsc: Boolean = false): List<ButtonMap> {
@@ -128,30 +145,6 @@ class NovaConf(private val location: Path) {
                 p2Config.up, p2Config.down, p2Config.left, p2Config.right, p2Config.punch, p2Config.kick
             )
         }
-    }
-
-    private fun getDefaultP1Config(): ControlMapping {
-        return ControlMapping(
-            up = ButtonMap(type = ControlType.KEY, scancode = VIRT_UP, name = "Up"),
-            down = ButtonMap(type = ControlType.KEY, scancode = VIRT_DOWN, name = "Down"),
-            left = ButtonMap(type = ControlType.KEY, scancode = VIRT_LEFT, name = "Left"),
-            right = ButtonMap(type = ControlType.KEY, scancode = VIRT_RIGHT, name = "Right"),
-            punch = ButtonMap(type = ControlType.KEY, scancode = VIRT_RETURN, name = "Return"),
-            kick = ButtonMap(type = ControlType.KEY, scancode = VIRT_RSHIFT, name = "Right Shift"),
-            esc = ButtonMap(type = ControlType.KEY, scancode = VIRT_ESC, name = "Escape")
-        )
-    }
-
-    private fun getDefaultP2Config(): ControlMapping {
-        return ControlMapping(
-            up = ButtonMap(type = ControlType.KEY, scancode = VIRT_W, name = "W"),
-            down = ButtonMap(type = ControlType.KEY, scancode = VIRT_S, name = "S"),
-            left = ButtonMap(type = ControlType.KEY, scancode = VIRT_A, name = "A"),
-            right = ButtonMap(type = ControlType.KEY, scancode = VIRT_D, name = "D"),
-            punch = ButtonMap(type = ControlType.KEY, scancode = VIRT_LSHIFT, name = "Left Shift"),
-            kick = ButtonMap(type = ControlType.KEY, scancode = VIRT_LCTRL, name = "Left Ctrl"),
-            esc = ButtonMap(type = ControlType.KEY, scancode = VIRT_ESC, name = "Escape")
-        )
     }
 }
 
@@ -177,11 +170,46 @@ data class NovaConfFile(
     var dosBoxPath: String = "",
     var omfPath: String = "",
     var confPath: String = "",
-    val p1Config: ControlMapping,
-    val p2Config: ControlMapping,
+    val p1Config: MutableMap<String, ButtonMap> = getDefaultP1Config(),
+    val p2Config: MutableMap<String, ButtonMap> = getDefaultP2Config(),
+    val trainingConfig: MutableMap<String, ButtonMap> = getDefaultTrainingConfig(),
     var joyEnabled: Boolean = true,
     var saveReplays: Boolean = false,
     var userConf: Boolean = false,
     var stagingCompat: Boolean = false,
     var attract: Boolean = false
 )
+
+private fun getDefaultP1Config(): MutableMap<String, ButtonMap> {
+    return mutableMapOf(
+        "up" to ButtonMap(type = ControlType.KEY, scancode = VIRT_UP, name = "Up"),
+        "down" to ButtonMap(type = ControlType.KEY, scancode = VIRT_DOWN, name = "Down"),
+        "left" to ButtonMap(type = ControlType.KEY, scancode = VIRT_LEFT, name = "Left"),
+        "right" to ButtonMap(type = ControlType.KEY, scancode = VIRT_RIGHT, name = "Right"),
+        "punch" to ButtonMap(type = ControlType.KEY, scancode = VIRT_RETURN, name = "Return"),
+        "kick" to ButtonMap(type = ControlType.KEY, scancode = VIRT_RSHIFT, name = "Right Shift"),
+        "esc" to ButtonMap(type = ControlType.KEY, scancode = VIRT_ESC, name = "Escape")
+    )
+}
+
+private fun getDefaultP2Config(): MutableMap<String, ButtonMap> {
+    return mutableMapOf(
+        "up" to ButtonMap(type = ControlType.KEY, scancode = VIRT_W, name = "W"),
+        "down" to ButtonMap(type = ControlType.KEY, scancode = VIRT_S, name = "S"),
+        "left" to ButtonMap(type = ControlType.KEY, scancode = VIRT_A, name = "A"),
+        "right" to ButtonMap(type = ControlType.KEY, scancode = VIRT_D, name = "D"),
+        "punch" to ButtonMap(type = ControlType.KEY, scancode = VIRT_LSHIFT, name = "Left Shift"),
+        "kick" to ButtonMap(type = ControlType.KEY, scancode = VIRT_LCTRL, name = "Left Ctrl"),
+        "esc" to ButtonMap(type = ControlType.KEY, scancode = VIRT_ESC, name = "Escape")
+    )
+}
+
+private fun getDefaultTrainingConfig(): MutableMap<String, ButtonMap> {
+    return mutableMapOf(
+        "resetLeft" to ButtonMap(type = ControlType.KEY, scancode = VIRT_F1, name = "F1"),
+        "resetCenter" to ButtonMap(type = ControlType.KEY, scancode = VIRT_F2, name = "F2"),
+        "resetRight" to ButtonMap(type = ControlType.KEY, scancode = VIRT_F3, name = "F3"),
+        "record" to ButtonMap(type = ControlType.KEY, scancode = VIRT_F4, name = "F4"),
+        "playback" to ButtonMap(type = ControlType.KEY, scancode = VIRT_F5, name = "F5")
+    )
+}
