@@ -18,7 +18,7 @@ abstract class NovaWindowSDL: NovaWindow {
 
     //* Joystick Management *//
     private var joyEnabled = false
-    private val joysticks = mutableListOf<Input>()
+    private val joysticks = mutableListOf<SdlInput>()
 
     open fun init(): Boolean {
         writeLog("Initializing SDL")
@@ -96,11 +96,11 @@ abstract class NovaWindowSDL: NovaWindow {
                             writeLog("Deduped.")
                         } else {
                             if (SDL_IsGameController(id) == SDL_TRUE) {
-                                Controller.open(id)?.let {
+                                SdlController.open(id)?.let {
                                     joysticks.add(it)
                                 }
                             } else {
-                                Joystick.open(id)?.let {
+                                SdlJoystick.open(id)?.let {
                                     joysticks.add(it)
                                 }
                             }
@@ -200,8 +200,21 @@ abstract class NovaWindowSDL: NovaWindow {
         SDL_RenderCopy(renderer, texture, null, dstRect.ptr)
     }
 
-    override fun showText(textLine: String, font: Int, x: Int, y: Int, reverse: Boolean) {
-        fontRenderers[font].drawText(textLine, x, y, reverse)
+    override fun showText(textLine: String, font: Int, x: Int, y: Int, align: TextAlignment) {
+        when (align) {
+            TextAlignment.LEFT -> fontRenderers[font].drawText(textLine, x, y, false)
+            TextAlignment.RIGHT -> fontRenderers[font].drawText(textLine, x, y, true)
+            TextAlignment.CENTER -> {
+                fontRenderers[font].apply {
+                    val (width, height) = getTextDimensions(textLine)
+                    fontRenderers[font].drawText(textLine, x-width/2, y, false)
+                }
+            }
+        }
+    }
+
+    override fun getControllerList(): List<Controller> {
+        return joysticks
     }
 
     override fun setJoystickEnabled(joyEnabled: Boolean) {

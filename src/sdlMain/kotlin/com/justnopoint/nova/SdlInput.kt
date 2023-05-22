@@ -3,12 +3,11 @@ package com.justnopoint.nova
 import SDL.SDL_Event
 import SDL.SDL_JoystickID
 
-interface Input {
+interface SdlInput: Controller {
     fun updateControllerButton(event: SDL_Event)
     fun updateControllerAxis(event: SDL_Event)
     fun updateControllerHat(event: SDL_Event)
     fun close()
-    fun getDeviceId(): Int
     fun getCurrentId(): SDL_JoystickID
     fun getEvents(): ArrayDeque<ControllerEvent>
 }

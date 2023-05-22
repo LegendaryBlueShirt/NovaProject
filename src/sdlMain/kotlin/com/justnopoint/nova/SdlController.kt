@@ -2,8 +2,9 @@ package com.justnopoint.nova
 
 import SDL.*
 import kotlinx.cinterop.CPointer
+import kotlinx.cinterop.toKString
 
-class Controller(private val controllerId: Int, private val controller: CPointer<SDL_GameController>): Input {
+class SdlController(private val controllerId: Int, private val controller: CPointer<SDL_GameController>): SdlInput {
     private val buttons = mutableMapOf<UByte, Button>()
     private val axes: Map<UByte, Axis>
     private val hats: Map<UByte, Hat>
@@ -111,10 +112,15 @@ class Controller(private val controllerId: Int, private val controller: CPointer
         return events
     }
 
+    override fun getName(): String {
+        val myname = SDL_GameControllerName(controller)?.toKString()
+        return "$myname $controllerId"
+    }
+
     companion object {
-        fun open(deviceId: Int): Controller? {
+        fun open(deviceId: Int): SdlController? {
             SDL_GameControllerOpen(deviceId)?.let {
-                return Controller(deviceId, it)
+                return SdlController(deviceId, it)
             }
             return null
         }

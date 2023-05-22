@@ -139,6 +139,15 @@ class Win32Container: NovaWindowSDL() {
         //com.justnopoint.nova.getProcessInfo?.pointed?.hProcess
     }
 
+    override fun showTextInput(title: String, prompt: String): String {
+        val input =
+            tinyfd_inputBoxW(
+                aTitle = title.wcstr,
+                aMessage = prompt.wcstr,
+                aDefaultInput = "".wcstr)
+        return input?.toKStringFromUtf16()?:""
+    }
+
     override fun showFolderChooser(start: String, prompt: String): String {
         val selectedDirectory: CPointer<wchar_tVar>? =
             tinyfd_selectFolderDialogW(

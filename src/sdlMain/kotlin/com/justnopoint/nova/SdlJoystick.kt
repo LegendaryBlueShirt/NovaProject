@@ -3,7 +3,7 @@ package com.justnopoint.nova
 import SDL.*
 import kotlinx.cinterop.CPointer
 
-class Joystick(private val controllerId: Int, private val controller: CPointer<SDL_Joystick>): Input {
+class SdlJoystick(private val controllerId: Int, private val controller: CPointer<SDL_Joystick>): SdlInput {
     private val buttons: Map<UByte, Button>
     private val axes: Map<UByte, Axis>
     private val hats: Map<UByte, Hat>
@@ -96,10 +96,14 @@ class Joystick(private val controllerId: Int, private val controller: CPointer<S
         return events
     }
 
+    override fun getName(): String {
+        return "Joystick $controllerId"
+    }
+
     companion object {
-        fun open(deviceId: Int): Joystick? {
+        fun open(deviceId: Int): SdlJoystick? {
             SDL_JoystickOpen(deviceId)?.let {
-                return Joystick(deviceId, it)
+                return SdlJoystick(deviceId, it)
             }
             return null
         }
