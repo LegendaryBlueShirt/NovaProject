@@ -1,8 +1,9 @@
 package com.justnopoint.nova.simplemenu
 
 import com.justnopoint.nova.NovaWindow
-
 object TopLevelItem: MenuItem {
+    override fun setParent(parent: SimpleMenu) {}
+
     override fun onSelect() {}
 
     override fun getHeight(): Int {

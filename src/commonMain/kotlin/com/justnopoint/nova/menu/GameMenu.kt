@@ -1,5 +1,6 @@
 package com.justnopoint.nova.menu
 
+import com.justnopoint.nova.ButtonMap
 import com.justnopoint.nova.MenuFonts
 import com.justnopoint.nova.NovaProject
 import com.justnopoint.nova.NovaWindow
@@ -10,7 +11,7 @@ class GameMenu(project: NovaProject) : NovaMenu(project) {
     enum class State {
         MENU, GAME, TRAINING
     }
-    private var currentState = State.MENU
+    var currentState = State.MENU
 
     override fun reset() {
         currentState = State.MENU
@@ -18,14 +19,17 @@ class GameMenu(project: NovaProject) : NovaMenu(project) {
     }
 
     override fun render(window: NovaWindow, frame: Int) {
-        if(selectedIndex < 0) selectedIndex = 2
-        if(selectedIndex > 2) selectedIndex = 0
+        if(selectedIndex < 0) selectedIndex = 4
+        if(selectedIndex > 4) selectedIndex = 0
 
         when (currentState) {
             State.MENU -> {
                 renderText(window, "Two Player Versus", 18 * scale, 20 * scale, selectedIndex == 0, frame)
                 renderText(window, "Training Mode", 18 * scale, 33 * scale, selectedIndex == 1, frame)
                 renderText(window, "Normal Start", 18 * scale, 46 * scale, selectedIndex == 2, frame)
+                renderText(window, "Pilot Names", 18 * scale, 59 * scale, selectedIndex == 3, frame)
+                renderText(window, "Enhancement", 18 * scale, 72 * scale, selectedIndex == 4, frame)
+                renderText(window, "${project.novaConf.enhancement}", 180 * scale, 72 * scale, selectedIndex == 4, frame)
 
                 val hintText = when (selectedIndex) {
                     0 -> "Fight against another player!"
@@ -46,7 +50,16 @@ class GameMenu(project: NovaProject) : NovaMenu(project) {
         }
     }
 
-    override fun select() {
+    override fun menuInput(menuInput: MenuInput, input: ButtonMap) {
+        when(menuInput) {
+            MenuInput.SELECT -> select()
+            MenuInput.UP -> up()
+            MenuInput.DOWN -> down()
+            else -> {}
+        }
+    }
+
+    fun select() {
         when(selectedIndex) {
             0 -> {
                 project.startVs()
@@ -60,14 +73,25 @@ class GameMenu(project: NovaProject) : NovaMenu(project) {
                 project.startNormal()
                 currentState = State.GAME
             }
+            3 -> {
+                project.getPilotNames()
+                currentState = State.MENU
+            }
+            4 -> {
+                project.novaConf.enhancement++
+                if(project.novaConf.enhancement > 3) {
+                    project.novaConf.enhancement = 0
+                }
+                currentState = State.MENU
+            }
         }
     }
 
-    override fun up() {
+    fun up() {
         selectedIndex--
     }
 
-    override fun down() {
+    fun down() {
         selectedIndex++
     }
 }

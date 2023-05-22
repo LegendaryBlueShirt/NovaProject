@@ -23,15 +23,28 @@ abstract class NovaMenu(val project: NovaProject) {
         }
     }
 
-    protected fun renderReversed(window: NovaWindow, text: String, x: Int, y: Int, selected: Boolean, frame: Int, red: Boolean = false) {
-        window.showText(text.reversed(), MenuFonts.bigFont_shadow, x, y + scale, true)
+    protected fun renderCentered(window: NovaWindow, text: String, x: Int, y: Int, selected: Boolean, frame: Int, red: Boolean = false) {
+        window.showText(text, MenuFonts.bigFont_shadow, x, y + scale, TextAlignment.CENTER)
         if (!selected) {
-            window.showText(text.reversed(), if(red) MenuFonts.bigFont_red else MenuFonts.bigFont_normal, x, y, true)
+            window.showText(text, if(red) MenuFonts.bigFont_red else MenuFonts.bigFont_normal, x, y, TextAlignment.CENTER)
         } else {
             if (frame % 120 < 60) {
-                window.showText(text.reversed(), if (red) MenuFonts.bigFont_red else MenuFonts.bigFont_highlight1, x, y, true)
+                window.showText(text, if (red) MenuFonts.bigFont_red else MenuFonts.bigFont_highlight1, x, y, TextAlignment.CENTER)
             } else {
-                window.showText(text.reversed(), if (red) MenuFonts.bigFont_red_lighter else MenuFonts.bigFont_highlight2, x, y, true)
+                window.showText(text, if (red) MenuFonts.bigFont_red_lighter else MenuFonts.bigFont_highlight2, x, y, TextAlignment.CENTER)
+            }
+        }
+    }
+
+    protected fun renderReversed(window: NovaWindow, text: String, x: Int, y: Int, selected: Boolean, frame: Int, red: Boolean = false) {
+        window.showText(text.reversed(), MenuFonts.bigFont_shadow, x, y + scale, TextAlignment.RIGHT)
+        if (!selected) {
+            window.showText(text.reversed(), if(red) MenuFonts.bigFont_red else MenuFonts.bigFont_normal, x, y, TextAlignment.RIGHT)
+        } else {
+            if (frame % 120 < 60) {
+                window.showText(text.reversed(), if (red) MenuFonts.bigFont_red else MenuFonts.bigFont_highlight1, x, y, TextAlignment.RIGHT)
+            } else {
+                window.showText(text.reversed(), if (red) MenuFonts.bigFont_red_lighter else MenuFonts.bigFont_highlight2, x, y, TextAlignment.RIGHT)
             }
         }
     }
@@ -40,60 +53,59 @@ abstract class NovaMenu(val project: NovaProject) {
         when(input.type) {
             ControlType.KEY -> {
                 when(input.scancode) {
-                    VIRT_LEFT -> left()
-                    VIRT_RIGHT -> right()
-                    VIRT_UP -> up()
-                    VIRT_DOWN -> down()
-                    VIRT_RETURN, VIRT_KP_ENTER -> select()
-                    VIRT_ESC -> cancel()
+                    VIRT_LEFT -> menuInput(MenuInput.LEFT, input)
+                    VIRT_RIGHT -> menuInput(MenuInput.RIGHT, input)
+                    VIRT_UP -> menuInput(MenuInput.UP, input)
+                    VIRT_DOWN -> menuInput(MenuInput.DOWN, input)
+                    VIRT_RETURN, VIRT_KP_ENTER -> menuInput(MenuInput.SELECT, input)
+                    VIRT_ESC -> menuInput(MenuInput.CANCEL, input)
                 }
             }
             ControlType.AXIS -> {
                 if(input.axisId == 0) {
                     if(input.direction == -1) {
-                        left()
+                        menuInput(MenuInput.LEFT, input)
                     } else {
-                        right()
+                        menuInput(MenuInput.RIGHT, input)
                     }
                 } else if(input.axisId == 1) {
                     if(input.direction == -1) {
-                        up()
+                        menuInput(MenuInput.UP, input)
                     } else {
-                        down()
+                        menuInput(MenuInput.DOWN, input)
                     }
                 }
             }
             ControlType.BUTTON -> {
                 if(input.direction == 0) {
                     if(input.axisId == 0) {
-                        select()
+                        menuInput(MenuInput.SELECT, input)
                     } else {
-                        cancel()
+                        menuInput(MenuInput.CANCEL, input)
                     }
                 } else {
                     when(input.direction) {
-                        1 -> up()
-                        4 -> down()
-                        8 -> left()
-                        2 -> right()
+                        1 -> menuInput(MenuInput.UP, input)
+                        4 -> menuInput(MenuInput.DOWN, input)
+                        8 -> menuInput(MenuInput.LEFT, input)
+                        2 -> menuInput(MenuInput.RIGHT, input)
                     }
                 }
             }
             ControlType.HAT -> {
                 when(input.direction) {
-                    1 -> up()
-                    4 -> down()
-                    8 -> left()
-                    2 -> right()
+                    1 -> menuInput(MenuInput.UP, input)
+                    4 -> menuInput(MenuInput.DOWN, input)
+                    8 -> menuInput(MenuInput.LEFT, input)
+                    2 -> menuInput(MenuInput.RIGHT, input)
                 }
             }
         }
     }
 
-    open fun left() {}
-    open fun right() {}
-    open fun up() {}
-    open fun down() {}
-    open fun select() {}
-    open fun cancel() {}
+    open fun menuInput(menuInput: MenuInput, input: ButtonMap) {}
+}
+
+enum class MenuInput {
+    UP, DOWN, LEFT, RIGHT, SELECT, CANCEL
 }

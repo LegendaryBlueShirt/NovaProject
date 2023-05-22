@@ -5,7 +5,7 @@ import com.justnopoint.nova.*
 class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
     private var selectedIndex = 0
     enum class KeyConfigState {
-        MENU, CONFIGURE, AWAIT, TRAININGCONFIG, TRAININGAWAIT
+        MENU, CONFIGURE, AWAIT, TRAININGCONFIG, TRAININGAWAIT, CONTROLLERS
     }
     var currentState = KeyConfigState.MENU
     private lateinit var currentConfig: ControlMapping
@@ -19,12 +19,24 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
 
     override fun render(window: NovaWindow, frame: Int) {
         when(currentState) {
+            KeyConfigState.CONTROLLERS -> {
+                project.getControllerList().forEachIndexed { index, s ->
+                    if(project.p1Controller == s) {
+                        window.showText(s.getName(), MenuFonts.smallFont_yellow,18*scale, (20 + 8 * index) * scale, TextAlignment.LEFT)
+                    } else if(project.p2Controller == s) {
+                        window.showText(s.getName().reversed(), MenuFonts.smallFont_yellow,306*scale, (20 + 8 * index) * scale, TextAlignment.RIGHT)
+                    } else {
+                        window.showText(s.getName(), MenuFonts.smallFont_yellow,160*scale, (20 + 8 * index) * scale, TextAlignment.CENTER)
+                    }
+                }
+            }
             KeyConfigState.MENU -> {
-                if(selectedIndex < 0) selectedIndex = 2
-                if(selectedIndex > 2) selectedIndex = 0
-                renderText(window, "Player 1 Controls", 18 * scale, 20 * scale, selectedIndex == 0, frame)
-                renderText(window, "Player 2 Controls", 18 * scale, 33 * scale, selectedIndex == 1, frame)
-                renderText(window, "Training Mode Controls", 18 * scale, 46 * scale, selectedIndex == 2, frame)
+                if(selectedIndex < 0) selectedIndex = 3
+                if(selectedIndex > 3) selectedIndex = 0
+                renderText(window, "Set Controllers", 18*scale, 20*scale, selectedIndex == 0, frame)
+                renderText(window, "Player 1 Controls", 18 * scale, 33 * scale, selectedIndex == 1, frame)
+                renderText(window, "Player 2 Controls", 18 * scale, 46 * scale, selectedIndex == 2, frame)
+                renderText(window, "Training Mode Controls", 18 * scale, 59 * scale, selectedIndex == 3, frame)
 
                 window.showText("Set your in-game controls.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
             }
@@ -91,10 +103,37 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
         }
     }
 
-    override fun handleInput(input: ButtonMap) {
+    override fun menuInput(menuInput: MenuInput, input: ButtonMap) {
         when(currentState) {
             KeyConfigState.CONFIGURE, KeyConfigState.MENU, KeyConfigState.TRAININGCONFIG -> {
-                super.handleInput(input)
+                when(menuInput) {
+                    MenuInput.UP -> selectedIndex--
+                    MenuInput.DOWN -> selectedIndex++
+                    MenuInput.SELECT -> select()
+                    MenuInput.CANCEL -> cancel()
+                    else -> {}
+                }
+            }
+            KeyConfigState.CONTROLLERS -> {
+                val controller = project.getControllerList().find { it.getDeviceId() == input.controlId }
+
+                when(menuInput) {
+                    MenuInput.LEFT -> {
+                        if(project.p2Controller == controller) {
+                            project.p2Controller = null
+                        } else if(project.p1Controller == null) {
+                            project.p1Controller = controller
+                        }
+                    }
+                    MenuInput.RIGHT -> {
+                        if(project.p1Controller == controller) {
+                            project.p1Controller = null
+                        } else if(project.p2Controller == null) {
+                            project.p2Controller = controller
+                        }
+                    }
+                    else -> {}
+                }
             }
             KeyConfigState.TRAININGAWAIT -> {
                 when(configKey) {
@@ -119,17 +158,11 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
                 currentState = KeyConfigState.CONFIGURE
             }
         }
+
+
     }
 
-    override fun up() {
-        selectedIndex--
-    }
-
-    override fun down() {
-        selectedIndex++
-    }
-
-    override fun select() {
+    private fun select() {
         when(currentState) {
             KeyConfigState.CONFIGURE -> {
                 currentState = KeyConfigState.AWAIT
@@ -161,8 +194,9 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
         }
     }
 
-    override fun cancel() {
+    private fun cancel() {
         when(currentState) {
+            KeyConfigState.CONTROLLERS,
             KeyConfigState.TRAININGCONFIG,
             KeyConfigState.CONFIGURE -> {
                 currentState = KeyConfigState.MENU
@@ -173,11 +207,17 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
     }
 
     fun startConfig() {
-        if(selectedIndex == 2) {
-            currentState = KeyConfigState.TRAININGCONFIG
-        } else {
-            currentState = KeyConfigState.CONFIGURE
-            currentConfig = if (selectedIndex == 0) project.novaConf.p1Config else project.novaConf.p2Config
+        when (selectedIndex) {
+            0 -> {
+                currentState = KeyConfigState.CONTROLLERS
+            }
+            3 -> {
+                currentState = KeyConfigState.TRAININGCONFIG
+            }
+            else -> {
+                currentState = KeyConfigState.CONFIGURE
+                currentConfig = if (selectedIndex == 1) project.novaConf.p1Config else project.novaConf.p2Config
+            }
         }
     }
 }

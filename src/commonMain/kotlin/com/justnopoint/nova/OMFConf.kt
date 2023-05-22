@@ -5,6 +5,8 @@ package com.justnopoint.nova
 import okio.*
 
 class OMFConf(buffer: BufferedSource) {
+    var loadSuccess = false
+
     var speed = 8
     var difficulty = 0
     var throwRange = 100
@@ -46,6 +48,7 @@ class OMFConf(buffer: BufferedSource) {
             sound = buffer.readByte().toUByte().toInt()
             music = buffer.readByte().toUByte().toInt()
             buffer.read(unkFooter)
+            loadSuccess = true
         } catch (e: Exception) {
             showErrorPopup("Error loading OMF configuration", e.message?:"Unknown Error")
         }

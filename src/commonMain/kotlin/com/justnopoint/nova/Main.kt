@@ -20,7 +20,7 @@ expect fun showErrorPopup(title: String, message: String)
 
 expect fun writeLog(message: String)
 
-val debug = true
+val debug = false
 var trainingMode = false
 class NovaProject {
     private var quit = false
@@ -41,6 +41,9 @@ class NovaProject {
     private var gameRunning = false
     private var matchStarted = false
     private var vsScreen = false
+
+    var p1Controller: Controller? = null
+    var p2Controller: Controller? = null
 
     fun runLoop(window: NovaWindow) {
         onStart(window)
@@ -129,7 +132,14 @@ class NovaProject {
         }
         trainingMode = true
         setTrainingInputs(novaConf.trainingConfig)
-        startDosBox(saveReplays = false, userconf = false)
+        startDosBox(saveReplays = false, userconf = novaConf.userConf)
+    }
+
+    fun getPilotNames() {
+        val p1Name = window.showTextInput("Pilot Name", "Player 1 Name?")
+        val p2Name = window.showTextInput("Pilot Name", "Player 2 Name?")
+        novaConf.p1Name = p1Name
+        novaConf.p2Name = p2Name
     }
 
     fun startSetup() {
@@ -181,7 +191,7 @@ class NovaProject {
             "-noconsole",
             "-noautoexec",
             "-conf \"$dosboxConfPath\"",
-            "-c \"mount c ${novaConf.omfPath}\"",
+            "-c \"mount c \\\"${novaConf.omfPath}\\\"\"",
             "-c \"c:\"",
             "-c \"file0001 $omfParams\"",
             "-c \"exit\""
@@ -201,13 +211,17 @@ class NovaProject {
         p1struct.ptrAddr = readMemoryInt(p1PilotPointer).toLong()
         p2struct.ptrAddr = readMemoryInt(p2PilotPointer).toLong()
 
-//        for(n in 0 until 11) {
-//            writeMemoryByte(p1struct.enchancementLevel + n, 3u)
-//            writeMemoryByte(p2struct.enchancementLevel + n, 3u)
-//        }
-//
-//        writeMemoryString(p1struct.name, "Yo", 18)
-//        writeMemoryString(p2struct.name, "Mama", 18)
+        for(n in 0 until 11) {
+            writeMemoryByte(p1struct.enchancementLevel + n, novaConf.enhancement.toUByte())
+            writeMemoryByte(p2struct.enchancementLevel + n, novaConf.enhancement.toUByte())
+        }
+
+        if(novaConf.p1Name?.isNotEmpty() == true) {
+            writeMemoryString(p1struct.name, novaConf.p1Name!!, 18)
+        }
+        if(novaConf.p2Name?.isNotEmpty() == true) {
+            writeMemoryString(p2struct.name, novaConf.p2Name!!, 18)
+        }
     }
 
     fun matchStarted() {
@@ -231,6 +245,10 @@ class NovaProject {
 //        writeMemoryByte(video.palette+47*3+2, savedB)
     }
 
+    fun getControllerList(): List<Controller> {
+        return window.getControllerList()
+    }
+
     fun dosBoxFinished() {
         writeLog("DOSBox has terminated")
         trainingMode = false
@@ -245,10 +263,12 @@ class NovaProject {
         try {
             FileSystem.SYSTEM.apply {
                 if(exists(configPath)) {
-                    write(file = configPath, mustCreate = false) {
-                        omfConfig?.buildFile(this, singlePlayer)
+                    if(omfConfig?.loadSuccess == true) {
+                        write(file = configPath, mustCreate = false) {
+                            omfConfig?.buildFile(this, singlePlayer)
+                        }
+                        writeLog("OMF configuration written")
                     }
-                    writeLog("OMF configuration written")
                 }
             }
         } catch (e: Exception) {
@@ -298,7 +318,7 @@ class NovaProject {
         window.endRender()
     }
 
-    private fun loadOmfConfig() {
+    fun loadOmfConfig() {
         val configPath = novaConf.omfPath.toPath().div(OMFConf.FILENAME)
         val fs = FileSystem.SYSTEM
         if (fs.exists(configPath)) {
@@ -333,10 +353,11 @@ interface NovaWindow {
     fun startRender()
     fun endRender()
     //fun showText(textLine: String)
-    fun showText(textLine: String, font: Int, x: Int, y: Int, reverse: Boolean = false)
+    fun showText(textLine: String, font: Int, x: Int, y: Int, align: TextAlignment = TextAlignment.LEFT)
     fun executeCommand(executable: String, command: String)
     fun showFileChooser(start: String, prompt: String, filter: String, filterDesc: String): String
     fun showFolderChooser(start: String, prompt: String): String
+    fun showTextInput(title: String, prompt: String): String
     fun setJoystickEnabled(joyEnabled: Boolean)
     fun destroy()
     fun loadFont(fontMapping: OmfFont, textureHandle: Int): Int
@@ -346,6 +367,11 @@ interface NovaWindow {
     fun loadTextureFromRaster(raster: UByteArray, width: Int, height: Int): Int
     fun showImage(textureHandle: Int, x: Int, y: Int)
     fun sendKeyEvent(mappedButton: ButtonMap, up: Boolean, useDummy: Boolean, recorded: Boolean = false)
+    fun getControllerList(): List<Controller>
+}
+
+enum class TextAlignment {
+    LEFT, RIGHT, CENTER
 }
 
 enum class ControlType {

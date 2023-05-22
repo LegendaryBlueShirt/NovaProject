@@ -1,5 +1,7 @@
 package com.justnopoint.nova
 
+import com.justnopoint.nova.simplemenu.ConfiguredFont
+
 @ThreadLocal
 object MenuFonts {
     private const val transparent: Byte = 0x0
@@ -18,6 +20,12 @@ object MenuFonts {
     var smallFont_sand = 0
     var smallFont_yellow = 0
     var smallFont_gray = 0
+
+    lateinit var menuFontDefault: ConfiguredFont
+    lateinit var menuFontDisabled: ConfiguredFont
+    lateinit var menuFontYellow: ConfiguredFont
+    lateinit var menuFontGray: ConfiguredFont
+    lateinit var menuFontSand: ConfiguredFont
 
     @OptIn(ExperimentalUnsignedTypes::class)
     fun initialize(window: NovaWindow, font1image: PCXImage, font2image: PCXImage) {
@@ -71,6 +79,36 @@ object MenuFonts {
         copyPalette(font2image.paletteData, (0x39 .. 0x3F).toList(), (0x1 .. 0x7).toList())
         font2tex = window.loadTexture(font2image)
         smallFont_gray = window.loadFont(font2mapping, font2tex)
+
+        compileFonts()
+    }
+
+    private fun compileFonts() {
+        menuFontDefault = ConfiguredFont(
+            lineHeight = 13,
+            unselectedFont = bigFont_normal,
+            selectedFont = bigFont_highlight1,
+            selectedFontHighlight = bigFont_highlight2,
+            shadowFont = bigFont_shadow
+        )
+        menuFontDisabled = ConfiguredFont(
+            lineHeight = 13,
+            unselectedFont = bigFont_red,
+            selectedFontHighlight = bigFont_red_lighter,
+            shadowFont = bigFont_shadow
+        )
+        menuFontGray = ConfiguredFont(
+            lineHeight = 7,
+            unselectedFont = smallFont_gray
+        )
+        menuFontYellow = ConfiguredFont(
+            lineHeight = 7,
+            unselectedFont = smallFont_yellow
+        )
+        menuFontSand = ConfiguredFont(
+            lineHeight = 7,
+            unselectedFont = smallFont_sand
+        )
     }
 
     private fun remapColors(data: ByteArray, fromColor: List<Int>, toColor: List<Int>) {

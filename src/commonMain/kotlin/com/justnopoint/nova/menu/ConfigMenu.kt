@@ -1,9 +1,6 @@
 package com.justnopoint.nova.menu
 
-import com.justnopoint.nova.MenuFonts
-import com.justnopoint.nova.NovaProject
-import com.justnopoint.nova.NovaWindow
-import com.justnopoint.nova.OMFConf
+import com.justnopoint.nova.*
 
 class ConfigMenu(project: NovaProject) : NovaMenu(project) {
     private var selectedIndex = 0
@@ -12,11 +9,21 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
     }
     var currentState = State.MENU
 
-    override fun up() {
+    override fun menuInput(menuInput: MenuInput, input: ButtonMap) {
+        when(menuInput) {
+            MenuInput.UP -> up()
+            MenuInput.DOWN -> down()
+            MenuInput.SELECT -> select()
+            MenuInput.CANCEL -> cancel()
+            else -> {}
+        }
+    }
+
+    fun up() {
         selectedIndex--
     }
 
-    override fun down() {
+    fun down() {
         selectedIndex++
     }
 
@@ -63,8 +70,8 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
                 renderText(window, "Save Replays", 18 * scale, 85 * scale, selectedIndex == 3, frame)
                 renderText(window, "Attract Mode", 18 * scale, 98 * scale, selectedIndex == 4, frame)
 
-                window.showText(project.novaConf.dosboxPath.reversed(), MenuFonts.smallFont_yellow,302*scale, 33*scale, true)
-                window.showText(project.novaConf.omfPath.reversed(), MenuFonts.smallFont_yellow,302*scale, 59*scale, true)
+                window.showText(project.novaConf.dosboxPath.reversed(), MenuFonts.smallFont_yellow,302*scale, 33*scale, TextAlignment.RIGHT)
+                window.showText(project.novaConf.omfPath.reversed(), MenuFonts.smallFont_yellow,302*scale, 59*scale, TextAlignment.RIGHT)
                 renderReversed(window, if(project.novaConf.joyEnabled) "On" else "Off", 302 * scale, 72 * scale, selectedIndex == 2, frame)
                 renderReversed(window, if(project.novaConf.saveReplays) "On" else "Off", 302 * scale, 85 * scale, selectedIndex == 3, frame)
                 renderReversed(window, if(project.novaConf.attract) "On" else "Off", 302 * scale, 98 * scale, selectedIndex == 4, frame)
@@ -88,7 +95,7 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
                 renderReversed(window,
                     if(project.novaConf.stagingCompat) "Yes" else "No", 302 * scale, 20 * scale, selectedIndex == 0, frame)
                 renderReversed(window, if(project.novaConf.userConf) "Yes" else "No", 302 * scale, 33 * scale, selectedIndex == 1, frame)
-                window.showText(project.novaConf.confPath.reversed(), MenuFonts.smallFont_yellow,302*scale, 59*scale, true)
+                window.showText(project.novaConf.confPath.reversed(), MenuFonts.smallFont_yellow,302*scale, 59*scale, TextAlignment.RIGHT)
 
                 when(selectedIndex) {
                     0 -> window.showText("Turn this on if you're having an issue with keyboard controls.", MenuFonts.smallFont_gray, hintCoordX, hintCoordY)
@@ -134,14 +141,17 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
         }
     }
 
-    override fun select() {
+    fun select() {
         when(currentState) {
             State.NOVACONF -> {
                 project.novaConf.apply {
                     when (selectedIndex) {
                         0 -> dosboxPath =
                             project.showFileChooser(dosboxPath.ifEmpty { ".\\DOSBox.exe" }, "Select DOSBox.exe", "*.exe", "executable files")
-                        1 -> omfPath = project.showFolderChooser(omfPath.ifEmpty { "." }, "Select OMF2097 Location")
+                        1 -> {
+                            omfPath = project.showFolderChooser(omfPath.ifEmpty { "." }, "Select OMF2097 Location")
+                            project.loadOmfConfig()
+                        }
                         2 -> {
                             joyEnabled = !joyEnabled
                             project.setJoystickEnabled(joyEnabled)
@@ -182,7 +192,7 @@ class ConfigMenu(project: NovaProject) : NovaMenu(project) {
         }
     }
 
-    override fun cancel() {
+    fun cancel() {
         if(currentState != State.MENU)
             currentState = State.MENU
     }
