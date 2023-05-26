@@ -28,9 +28,9 @@ abstract class NovaWindowSDL: NovaWindow {
         SDL_JoystickEventState(SDL_ENABLE)
         SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS,"1")
 
-        if((IMG_Init(IMG_INIT_PNG.toInt()) and IMG_INIT_PNG.toInt()) == 0) {
-            error("SDL_Image could not initialize! SDL_Error: ${IMG_GetError?.invoke()}")
-        }
+//        if((IMG_Init(IMG_INIT_PNG.toInt()) and IMG_INIT_PNG.toInt()) == 0) {
+//            error("SDL_Image could not initialize! SDL_Error: ${IMG_GetError?.invoke()}")
+//        }
 
         window = SDL_CreateWindow("Nova Project", SDL_WINDOWPOS_UNDEFINED.toInt(), SDL_WINDOWPOS_UNDEFINED.toInt(), 640, 400, 0)
         renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)
@@ -168,11 +168,6 @@ abstract class NovaWindowSDL: NovaWindow {
 
     override fun loadTexture(image: PCXImage): Int {
         val surface = surfaceFromPcx(image)
-        return surfaceToTexture(surface)
-    }
-
-    override fun loadTexturePng(path: String): Int {
-        val surface = IMG_Load(path)
         return surfaceToTexture(surface)
     }
 

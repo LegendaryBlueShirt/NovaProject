@@ -228,7 +228,6 @@ interface NovaWindow {
     fun enableTraining()
     fun loadFont(fontMapping: OmfFont, textureHandle: Int): Int
     fun loadTexture(image: PCXImage): Int
-    fun loadTexturePng(path: String): Int
     @OptIn(ExperimentalUnsignedTypes::class)
     fun loadTextureFromRaster(raster: UByteArray, width: Int, height: Int): Int
     fun showImage(textureHandle: Int, x: Int, y: Int)

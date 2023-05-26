@@ -69,6 +69,10 @@ class ReplayMenu(project: NovaProject) : NovaMenu(project) {
         firstItem = 0
 
         val fs = FileSystem.SYSTEM
+        if(!fs.exists(folder)) {
+            replays = emptyList()
+            return
+        }
         val replayFiles = fs.list(folder).filter { it.name.endsWith(suffix = ".rec", ignoreCase = true) }
         replays = replayFiles.mapNotNull {
             try {

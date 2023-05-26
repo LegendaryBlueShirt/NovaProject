@@ -4,6 +4,7 @@ import kotlinx.cinterop.*
 import platform.linux.posix_spawn
 import platform.posix.*
 import tinyfiledialogs.*
+import xtest.*
 
 actual fun getNativeWindow(): NovaWindow? {
     val container = LinuxContainer()
@@ -27,9 +28,11 @@ val signalHandler = staticCFunction { signal: Int ->
 }
 
 class LinuxContainer: NovaWindowSDL() {
-    private var ar: Arena? = null
+    private var mappingsGenerated = true
+    private var display: CPointer<Display>? = null
 
     override fun init(): Boolean {
+        display = XOpenDisplay(null)
         if(super.init()) {
             val act = MemScope().alloc<sigaction>()
             sigemptyset(act.sa_mask.ptr)
@@ -45,9 +48,13 @@ class LinuxContainer: NovaWindowSDL() {
         super.processEvents(project)
 
         if(childTerminated) {
-            ar = null
             project.dosBoxFinished()
             childTerminated = false
+        }
+
+        if(!mappingsGenerated) {
+            createJoyToKeyMappings(project.novaConf)
+            mappingsGenerated = true
         }
     }
 
@@ -58,6 +65,7 @@ class LinuxContainer: NovaWindowSDL() {
         myargs.addAll(args)
         myargs.removeAt(1)
         popen(myargs.joinToString(" "), "r")
+        mappingsGenerated = false
 //        ar = Arena().apply {
 //            val argc = args.toCStringArray(this)
 //            //val argp = argc.
@@ -74,6 +82,40 @@ class LinuxContainer: NovaWindowSDL() {
 //        }
     }
 
+    //fun findDosbox(): Boolean {
+    //    var result = validateDosbox("dosbox")
+    //    if(result != null) {
+    //        return true
+    //    }
+    //    var result =
+
+    //    return false
+    //}
+
+    fun validateDosbox(dosboxCommand: String): String? {
+        val result = getProcessOutput("$dosboxCommand -version | grep version")
+        return if(!result.contains("command not found")) {
+            result
+        } else {
+            null
+        }
+    }
+    fun getProcessOutput(command: String): String = memScoped {
+        var result = ""
+        val buffer = allocArray<ByteVar>(128)
+        val pipe = popen(command, "r")
+        try {
+            while(fgets(buffer, 128, pipe) != null) {
+                result += buffer
+            }
+        } catch (e: Exception) {
+            pclose(pipe)
+            throw e
+        }
+        pclose(pipe)
+        return result
+    }
+
     override fun showFolderChooser(start: String, prompt: String): String {
         val selectedDirectory: CPointer<ByteVar>? =
             tinyfd_selectFolderDialog(
@@ -82,26 +124,49 @@ class LinuxContainer: NovaWindowSDL() {
         return selectedDirectory?.toKStringFromUtf8()?:""
     }
 
-    override fun showFileChooser(start: String, prompt: String): String {
-        val filters = MemScope().allocArrayOf("*.exe".cstr.getPointer(MemScope()))
+    override fun showFileChooser(start: String, prompt: String, filter: String, filterDesc: String): String {
+        val filters = MemScope().allocArrayOf(filter.cstr.getPointer(MemScope()))
         val selectedFile: CPointer<ByteVar>? =
             tinyfd_openFileDialog(
                 aTitle = prompt,
                 aDefaultPathAndFile = start,
                 aAllowMultipleSelects = 0,
-                aFilterPatterns = null,
-                aNumOfFilterPatterns = 0,
-                aSingleFilterDescription = "dosbox executable"
+                aFilterPatterns = filters,
+                aNumOfFilterPatterns = 1,
+                aSingleFilterDescription = filterDesc
             )
         return selectedFile?.toKStringFromUtf8()?:""
     }
 
     override fun destroy() {
-
+        XCloseDisplay(display)
     }
 
     override fun enableTraining() {
-        TODO("Not yet implemented")
+
+    }
+
+    var inputToKeyMapping = emptyMap<ButtonMap, Int>()
+    private fun createJoyToKeyMappings(conf: NovaConf) {
+        val boundInputs = conf.getBoundInputs()
+        val usedScancodes = boundInputs.filter { it.type == ControlType.KEY }.map { it.scancode }
+        val possibleMappings = sdlKeyMapping.keys.filterNot { key ->
+            usedScancodes.contains(key)
+        }
+        val nonKeyMappings = boundInputs.filterNot { it.type == ControlType.KEY }
+        inputToKeyMapping = nonKeyMappings.zip(possibleMappings).toMap()
+    }
+
+    override fun sendKeyEvent(mappedButton: ButtonMap, up: Boolean) {
+        if(mappedButton.type == ControlType.KEY) return
+
+        val desiredVirtInput = inputToKeyMapping[mappedButton] ?: return
+
+        val tempCode = XKeysymToKeycode(display, sdlKeyMapping[desiredVirtInput]!!)
+        if(tempCode > 0u) {
+            XTestFakeKeyEvent(display, tempCode.toUInt(), if(up) 0 else 1, 0)
+            XFlush(display)
+        }
     }
 }
 
@@ -114,3 +179,22 @@ actual fun readMemoryInt(address: Long): UInt {
 actual fun writeMemoryInt(address: Long, value: UInt) {}
 actual fun writeMemoryShort(address: Long, value: UShort) {}
 actual fun writeMemoryByte(address: Long, value: UByte) {}
+
+val sdlKeyMapping = mapOf(
+    VIRT_A to XK_a.toULong(),
+    VIRT_B to XK_b.toULong(),
+    VIRT_C to XK_c.toULong(),
+    VIRT_D to XK_d.toULong(),
+    VIRT_E to XK_e.toULong(),
+    VIRT_F to XK_f.toULong(),
+    VIRT_G to XK_g.toULong(),
+    VIRT_H to XK_h.toULong(),
+    VIRT_I to XK_i.toULong(),
+    VIRT_J to XK_j.toULong(),
+    VIRT_K to XK_k.toULong(),
+    VIRT_L to XK_l.toULong()
+)
+
+actual fun getPossibleMappings(): Map<Int, Any> {
+    return sdlKeyMapping
+}

@@ -1,5 +1,5 @@
 plugins {
-    kotlin("multiplatform") version "1.7.20"
+    kotlin("multiplatform") version "1.8.20"
 }
 
 group = "org.example"
@@ -30,8 +30,8 @@ kotlin {
                 linkerOpts = mutableListOf(
                     "-L${nativelibs}/lib/x86_64-linux-gnu/cmake",
                     "-L${nativelibs}/lib/x86_64-linux-gnu", "-L${project.projectDir}/native/lib",
-                    "-lX11",
-                    "-lSDL2", "-lSDL2_image")
+                    "-lXtst", "-lX11",
+                    "-lSDL2")
             }
         }
         compilations.getByName("main").cinterops {
@@ -52,6 +52,15 @@ kotlin {
                 extraOpts = mutableListOf(
                     "-libraryPath", "${nativelibs}/lib",
                     "-libraryPath", "${project.projectDir}/native/lib"
+                )
+            }
+            val xtest by creating {
+                includeDirs(
+                    "${nativelibs}/include"
+                )
+                extraOpts = mutableListOf(
+                    //"-libraryPath", "${nativelibs}/lib/x86_64-linux-gnu/cmake",
+                    //"-libraryPath", "${nativelibs}/lib/x86_64-linux-gnu"
                 )
             }
         }
