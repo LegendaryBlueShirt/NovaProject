@@ -3,25 +3,28 @@ package com.justnopoint.nova
 import SDL.*
 import kotlinx.cinterop.CPointer
 
-class Joystick(val controllerId: Int, private val controller: CPointer<SDL_Joystick>) {
+class SdlJoystick(private val controllerId: Int, private val controller: CPointer<SDL_Joystick>): SdlInput {
     private val buttons: Map<UByte, Button>
     private val axes: Map<UByte, Axis>
     private val hats: Map<UByte, Hat>
 
-    val events = ArrayDeque<ControllerEvent>()
-
     init {
-        println("Creating joystick $controllerId")
+        writeLog("Creating joystick $controllerId")
         val nButtons = SDL_JoystickNumButtons(controller)
+        writeLog("Found $nButtons buttons")
         buttons = (0 until nButtons).associate { it.toUByte() to Button(it, false) }
         val nAxes = SDL_JoystickNumAxes(controller)
-        axes = (0 until nButtons).associate { it.toUByte() to Axis(it, 0) }
+        writeLog("Found $nAxes axes")
+        axes = (0 until nAxes).associate { it.toUByte() to Axis(it, 0) }
         val nHats = SDL_JoystickNumHats(controller)
-        hats = (0 until nButtons).associate { it.toUByte() to Hat(it, 0) }
+        writeLog("Found $nHats hats")
+        hats = (0 until nHats).associate { it.toUByte() to Hat(it, 0) }
     }
 
-    fun updateControllerButton(event: SDL_Event) {
-        when(event.type) {
+    private val events = ArrayDeque<ControllerEvent>()
+
+    override fun updateControllerButton(event: SDL_Event) {
+        when (event.type) {
             SDL_JOYBUTTONUP -> {
                 val button = event.jbutton.button
                 buttons[button]?.let {
@@ -31,6 +34,7 @@ class Joystick(val controllerId: Int, private val controller: CPointer<SDL_Joyst
                     }
                 }
             }
+
             SDL_JOYBUTTONDOWN -> {
                 val button = event.jbutton.button
                 buttons[button]?.let {
@@ -43,9 +47,9 @@ class Joystick(val controllerId: Int, private val controller: CPointer<SDL_Joyst
         }
     }
 
-    fun updateControllerAxis(event: SDL_Event) {
+    override fun updateControllerAxis(event: SDL_Event) {
         val value = event.jaxis.value
-        val dir = if(value < -3200) -1 else if(value > 3200) 1 else 0
+        val dir = if(value < -12800) -1 else if(value > 12800) 1 else 0
         val axis = event.jaxis.axis
         axes[axis]?.let {
             if(dir != it.direction) {
@@ -60,7 +64,7 @@ class Joystick(val controllerId: Int, private val controller: CPointer<SDL_Joyst
         }
     }
 
-    fun updateControllerHat(event: SDL_Event) {
+    override fun updateControllerHat(event: SDL_Event) {
         val hatId = event.jhat.hat
         val dir = event.jhat.value.toInt()
         hats[hatId]?.let {
@@ -74,29 +78,34 @@ class Joystick(val controllerId: Int, private val controller: CPointer<SDL_Joyst
         }
     }
 
-    fun close() {
+    override fun close() {
         if (SDL_JoystickGetAttached(controller) != 0u) {
-            println("Closing joystick $controllerId")
+            writeLog("Closing joystick $controllerId")
             SDL_JoystickClose(controller)
         }
     }
 
-    fun getCurrentId(): SDL_JoystickID {
+    override fun getDeviceId(): Int {
+        return controllerId
+    }
+    override fun getCurrentId(): SDL_JoystickID {
         return SDL_JoystickGetDeviceInstanceID(controllerId)
     }
 
+    override fun getEvents(): ArrayDeque<ControllerEvent> {
+        return events
+    }
+
+    override fun getName(): String {
+        return "Joystick $controllerId"
+    }
+
     companion object {
-        fun open(deviceId: Int): Joystick? {
+        fun open(deviceId: Int): SdlJoystick? {
             SDL_JoystickOpen(deviceId)?.let {
-                return Joystick(deviceId, it)
+                return SdlJoystick(deviceId, it)
             }
             return null
         }
     }
 }
-
-data class Button(val buttonId: Int, var pressed: Boolean)
-data class Hat(val hatId: Int, var direction: Int)
-data class Axis(val axisId: Int, var direction: Int)
-
-data class ControllerEvent(val type: ControlType, val id: Int, val direction: Int, val release: Boolean)

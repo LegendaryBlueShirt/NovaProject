@@ -46,6 +46,16 @@ abstract class OmfFontRenderer {
     abstract val font: OmfFont
     abstract val scale: Float
 
+    fun getTextDimensions(message: String): Pair<Int, Int> {
+        val lines = message.lines()
+        val height = ((font.getGlyph('0').h + 1)) * lines.size
+        val width = lines.maxOfOrNull { line ->
+            line.sumOf { c ->
+                font.getGlyph(c).w
+            }
+        }?:0
+        return (width*scale).toInt() to (height*scale).toInt()
+    }
     fun drawText(message: String, x: Int, y: Int, reverse: Boolean) {
         var xPosition = x
         var yPosition = y

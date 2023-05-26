@@ -5,6 +5,8 @@ package com.justnopoint.nova
 import okio.*
 
 class OMFConf(buffer: BufferedSource) {
+    var loadSuccess = false
+
     var speed = 8
     var difficulty = 0
     var throwRange = 100
@@ -23,27 +25,33 @@ class OMFConf(buffer: BufferedSource) {
 
     companion object {
         const val FILENAME = "SETUP.CFG"
+        const val SETUP = "SETUP.EXE"
         fun isValid(handle: FileHandle): Boolean {
             return true //TODO
         }
     }
 
     init {
-        speed = buffer.readByte().toUByte().toInt()
-        buffer.read(controlSettings)
-        p1ControlType = buffer.readShortLe().toInt()
-        buffer.skip(4)
-        buffer.read(unknowns)
-        difficulty = buffer.readShortLe().toInt()
-        throwRange = buffer.readShortLe().toInt()
-        hitPause = buffer.readShortLe().toInt()
-        blockDamage = buffer.readShortLe().toInt()
-        vitality = buffer.readShortLe().toInt()
-        jumpHeight = buffer.readShortLe().toInt()
-        buffer.readByteArray(8).toUByteArray().copyInto(flags)
-        sound = buffer.readByte().toUByte().toInt()
-        music = buffer.readByte().toUByte().toInt()
-        buffer.read(unkFooter)
+        try {
+            speed = buffer.readByte().toUByte().toInt()
+            buffer.read(controlSettings)
+            p1ControlType = buffer.readShortLe().toInt()
+            buffer.skip(4)
+            buffer.read(unknowns)
+            difficulty = buffer.readShortLe().toInt()
+            throwRange = buffer.readShortLe().toInt()
+            hitPause = buffer.readShortLe().toInt()
+            blockDamage = buffer.readShortLe().toInt()
+            vitality = buffer.readShortLe().toInt()
+            jumpHeight = buffer.readShortLe().toInt()
+            buffer.readByteArray(8).toUByteArray().copyInto(flags)
+            sound = buffer.readByte().toUByte().toInt()
+            music = buffer.readByte().toUByte().toInt()
+            buffer.read(unkFooter)
+            loadSuccess = true
+        } catch (e: Exception) {
+            showErrorPopup("Error loading OMF configuration", e.message?:"Unknown Error")
+        }
     }
 
     fun buildFile(buffer: BufferedSink, isSinglePlayer: Boolean = false) {

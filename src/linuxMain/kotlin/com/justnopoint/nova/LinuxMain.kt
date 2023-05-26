@@ -27,6 +27,13 @@ val signalHandler = staticCFunction { signal: Int ->
     childTerminated = true
 }
 
+actual fun writeLog(message: String) {
+    TODO()
+}
+actual fun showErrorPopup(title: String, message: String) {
+    TODO()
+}
+
 class LinuxContainer: NovaWindowSDL() {
     private var mappingsGenerated = true
     private var display: CPointer<Display>? = null
@@ -105,7 +112,7 @@ class LinuxContainer: NovaWindowSDL() {
         val buffer = allocArray<ByteVar>(128)
         val pipe = popen(command, "r")
         try {
-            while(fgets(buffer, 128, pipe) != null) {
+            while (fgets(buffer, 128, pipe) != null) {
                 result += buffer
             }
         } catch (e: Exception) {
@@ -114,6 +121,10 @@ class LinuxContainer: NovaWindowSDL() {
         }
         pclose(pipe)
         return result
+    }
+
+    override fun showFileChooser(start: String, prompt: String, filter: String, filterDesc: String): String {
+        TODO("Not yet implemented")
     }
 
     override fun showFolderChooser(start: String, prompt: String): String {
@@ -144,6 +155,10 @@ class LinuxContainer: NovaWindowSDL() {
 
     override fun enableTraining() {
 
+    }
+
+    override fun sendKeyEvent(mappedButton: ButtonMap, up: Boolean, useDummy: Boolean, recorded: Boolean) {
+        TODO("Not yet implemented")
     }
 
     var inputToKeyMapping = emptyMap<ButtonMap, Int>()

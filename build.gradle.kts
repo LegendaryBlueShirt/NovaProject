@@ -1,5 +1,6 @@
 plugins {
     kotlin("multiplatform") version "1.8.20"
+    kotlin("plugin.serialization") version "1.8.20"
 }
 
 group = "org.example"
@@ -9,7 +10,7 @@ repositories {
     mavenCentral()
 }
 
-var nativelibs = ""
+val nativelibs = ""
 val konanUserDir = System.getenv("KONAN_DATA_DIR") ?: "${System.getProperty("user.home")}\\.konan"
 val resFile = file("$buildDir/konan/res/Nova.res")
 
@@ -114,9 +115,11 @@ kotlin {
     }
 
     dependencies {
-        commonMainImplementation(platform("com.squareup.okio:okio-bom:3.2.0"))
+        commonMainImplementation(platform("com.squareup.okio:okio-bom:3.3.0"))
         commonMainImplementation("com.squareup.okio:okio")
         commonMainImplementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
+        commonMainImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.0-RC")
+        commonMainImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json-okio:1.5.0-RC")
     }
 }
 

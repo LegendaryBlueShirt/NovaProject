@@ -1,19 +1,45 @@
 package com.justnopoint.nova
-// Game var locations
-const val p1ScorePointer = 0x1FA250L
-const val p1HP = 0x15CE50L
-const val p1MaxHP = 0x15CE52L
-const val p1HPAlt = 0x15CE58L //Sometimes P1 HP is here instead, I don't know what causes this.
-const val p2HP = 0x15E144L
-const val p2MaxHP = 0x15E146L
-const val p1State = 0x215084L
-const val p1Stun = 0x2150C0L
-const val p1posX = 0x2150E0L
-const val p1posY = 0x2150E4L
-const val p2State = 0x220084L
-const val p2Stun = 0x2200C0L
-const val p2posX = 0x2200E0L
-const val p2posY = 0x2200E4L
+
+// Important Pointers
+const val p1PilotPointer = 0x1F7978L
+const val p2PilotPointer = 0x1F797CL
+
+val p1struct = PilotStruct(0)
+val p2struct = PilotStruct(0)
+
+val p1har = HarStruct(0x215038L)
+val p2har = HarStruct(0x220038L)
+
+val video = VideoStruct(0x1FEB5CL)
+
+// Pilot Struct
+class PilotStruct(var ptrAddr: Long) {
+    val name get() = ptrAddr+4
+    val harId get() = ptrAddr+27
+    val enchancementLevel get() = ptrAddr+166
+    val hp get() = ptrAddr+264
+    val hpMax get() = ptrAddr+266
+}
+
+// HAR Struct
+class HarStruct(private val ptrAddr: Long) {
+    val harId get() = ptrAddr+48
+    val anim get() = ptrAddr+76
+    val stun get() = ptrAddr+136
+    val posX get() = ptrAddr+168
+    val posY get() = ptrAddr+172
+    val velY get() = ptrAddr+176
+    val velX get() = ptrAddr+180
+    val enemyPtr get() = ptrAddr+248
+}
+
+class VideoStruct(private val ptrAddr: Long) {
+    val palette get() = ptrAddr+6687
+}
+
+
+const val videoCorner = 0x2460F0L
+const val vsScreenValue = 2189656707u // 0x82838283
 
 // Good numbers to have
 const val p1StartXPosition = 28160u

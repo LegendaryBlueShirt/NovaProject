@@ -35,7 +35,12 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
     }
 
     private fun canPlay(): Boolean {
-        return project.novaConf.dosboxPath.isNotBlank() && (project.omfConfig!=null)
+        val dosboxErrors = project.novaConf.validateDosbox()
+        if(dosboxErrors != null) return false
+        val missingFiles = project.novaConf.validateOmfSetup()
+        if(missingFiles.contains("FILE0001.EXE")) return false
+        if(missingFiles.contains(SoundCard.FILENAME)) return false
+        return true
     }
 
     override fun render(window: NovaWindow, frame: Int) {
@@ -78,6 +83,9 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
     }
 
     override fun handleInput(input: ButtonMap) {
+        if(debug) {
+            writeLog(input.toString())
+        }
         idleCounter = 0
 
         when(currentState) {
@@ -93,7 +101,6 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
                 configMenu.handleInput(input)
                 if(configMenu.currentState == ConfigMenu.State.MENU) {
                     currentState = State.MENU
-                    project.loadOmfConfig()
                     if(canPlay()) {
                         replayMenu.loadReplays(project.novaConf.omfPath.toPath())
                     }
@@ -102,40 +109,42 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
         }
     }
 
-    override fun left() {
+    override fun menuInput(menuInput: MenuInput, input: ButtonMap) {
+        when(menuInput) {
+            MenuInput.LEFT -> left()
+            MenuInput.RIGHT -> right()
+            MenuInput.SELECT -> select()
+            MenuInput.CANCEL -> cancel()
+            else -> {
+                when(selectedIndex) {
+                    0 -> gameMenu.menuInput(menuInput, input)
+                    1 -> keyConfigMenu.menuInput(menuInput, input)
+                    2 -> replayMenu.menuInput(menuInput, input)
+                    3 -> configMenu.menuInput(menuInput, input)
+                }
+            }
+        }
+    }
+
+    fun left() {
         selectedIndex--
         if(selectedIndex < 0) selectedIndex = 3
     }
 
-    override fun right() {
+    fun right() {
         selectedIndex++
         if(selectedIndex > 3) selectedIndex = 0
     }
 
-    override fun up() {
-        when(selectedIndex) {
-            0 -> gameMenu.up()
-            1 -> keyConfigMenu.up()
-            2 -> replayMenu.up()
-            3 -> configMenu.up()
-        }
-    }
-
-    override fun down() {
-        when(selectedIndex) {
-            0 -> gameMenu.down()
-            1 -> keyConfigMenu.down()
-            2 -> replayMenu.down()
-            3 -> configMenu.down()
-        }
-    }
-
-    override fun select() {
+    fun select() {
         when(selectedIndex) {
             0 -> {
                 if(canPlay()) {
                     currentState = State.GAME
                     gameMenu.select()
+                    if(gameMenu.currentState == GameMenu.State.MENU) {
+                        currentState = State.MENU
+                    }
                 }
             }
             1 -> {
@@ -156,7 +165,7 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
         }
     }
 
-    override fun cancel() {
+    fun cancel() {
         //if(currentState == State.MENU) {
         //    project.quit()
         //}

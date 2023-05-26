@@ -51,7 +51,7 @@ class ReplayMenu(project: NovaProject) : NovaMenu(project) {
 
         replays[selected].apply {
             window.showText("$p1Name/$p1Har vs. $p2Name/$p2Har", MenuFonts.smallFont_sand, hintCoordX, hintCoordY)
-            window.showText("Last frame - $lastTick".reversed(), MenuFonts.smallFont_yellow, 612, hintCoordY, true)
+            window.showText("Last frame - $lastTick".reversed(), MenuFonts.smallFont_yellow, 612, hintCoordY, TextAlignment.RIGHT)
             window.showText("Rounds -", MenuFonts.smallFont_sand, hintCoordX, hintCoordY+16)
             window.showText(getRounds(), MenuFonts.smallFont_yellow, hintCoordX+70, hintCoordY+16)
             window.showText("Hazards -", MenuFonts.smallFont_sand, hintCoordX+166, hintCoordY+16)
@@ -83,15 +83,24 @@ class ReplayMenu(project: NovaProject) : NovaMenu(project) {
         }
     }
 
-    override fun up() {
+    override fun menuInput(menuInput: MenuInput, input: ButtonMap) {
+        when(menuInput) {
+            MenuInput.UP -> up()
+            MenuInput.DOWN -> down()
+            MenuInput.SELECT -> select()
+            else -> {}
+        }
+    }
+
+    fun up() {
         selected--
     }
 
-    override fun down() {
+    fun down() {
         selected++
     }
 
-    override fun select() {
+    fun select() {
         val relative = replays[selected].path.relativeTo(project.novaConf.omfPath.toPath())
         project.startReplay(relative)
     }

@@ -1,6 +1,7 @@
 package com.justnopoint.nova
 
 import com.justnopoint.nova.menu.MainMenu
+import kotlinx.serialization.Serializable
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
@@ -9,17 +10,24 @@ import kotlin.system.getTimeMillis
 
 fun main() {
     getNativeWindow()?.let {
+        writeLog("Starting Nova")
         NovaProject().runLoop(it)
     }
 }
 
 expect fun getNativeWindow(): NovaWindow?
 
+expect fun showErrorPopup(title: String, message: String)
+
+expect fun writeLog(message: String)
+
+val debug = false
+var trainingMode = false
 class NovaProject {
     private var quit = false
     private lateinit var window: NovaWindow
     var omfConfig: OMFConf? = null
-    val novaConf = NovaConf("nova.cfg".toPath())
+    val novaConf = NovaConf("novacfg.json".toPath())
     private val dosboxConf = DOSBoxConf()
     private val mainMenu = MainMenu(this)
 
@@ -32,6 +40,11 @@ class NovaProject {
     private val millisPerFrame = 1000.0 / 60
 
     private var gameRunning = false
+    private var matchStarted = false
+    private var vsScreen = false
+
+    var p1Controller: Controller? = null
+    var p2Controller: Controller? = null
 
     fun runLoop(window: NovaWindow) {
         onStart(window)
@@ -39,16 +52,47 @@ class NovaProject {
         var currentFrameTime: Long
         var nextFrameTime: Long
         while (!quit) {
-            window.processEvents(this)
+            try {
+                window.processEvents(this)
+            } catch (e: Exception) {
+                showErrorPopup("Runtime Error", e.message?:"Unknown Error")
+            }
+            doDummyPlayback()?.let { (button, up, _) ->
+                window.sendKeyEvent(button, up, false, true)
+            }
             currentFrameTime = getTimeMillis()
             nextFrameTime = (startFrameTime + (frameCount*millisPerFrame).toLong())
             if(currentFrameTime > nextFrameTime) {
-                if(!gameRunning) {
+                //if(!gameRunning) {
                     renderFrame()
-                }
+                //}
                 frameCount++
                 if(frameCount < 0) {
                     frameCount = 0
+                }
+                if(gameRunning) {
+                    if (!matchStarted) {
+                        if (isMatchStarted()) {
+                            matchStarted = true
+                            matchStarted()
+                        }
+                    } else {
+                        if (!isMatchStarted()) {
+                            matchStarted = false
+                        } else {
+                            duringMatch()
+                        }
+                    }
+                    if (!vsScreen) {
+                        if (isVsScreen()) {
+                            vsScreenStarted()
+                            vsScreen = true
+                        }
+                    } else {
+                        if (!isVsScreen()) {
+                            vsScreen = false
+                        }
+                    }
                 }
             }
         }
@@ -65,30 +109,61 @@ class NovaProject {
                 mainMenu.handleInput(input)
             }
         } else {
-            window.sendKeyEvent(input, release)
+            window.sendKeyEvent(input, release, dummyActive)
         }
     }
 
     fun startVs() {
         omfConfig?.let {
             writeOmfConfig(false)
-            startDosBox(saveReplays = novaConf.saveReplays, userconf = novaConf.userConf)
         }
+        startDosBox(saveReplays = novaConf.saveReplays, userconf = novaConf.userConf)
     }
 
     fun startNormal() {
         omfConfig?.let {
             writeOmfConfig(true)
-            startDosBox(mode = "advanced", saveReplays = novaConf.saveReplays, userconf = novaConf.userConf)
         }
+        startDosBox(mode = "advanced", saveReplays = novaConf.saveReplays, userconf = novaConf.userConf)
     }
 
     fun startTraining() {
         omfConfig?.let {
-            window.enableTraining()
             writeOmfConfig(false)
-            startDosBox(saveReplays = false, userconf = false)
         }
+        trainingMode = true
+        setTrainingInputs(novaConf.trainingConfig)
+        startDosBox(saveReplays = false, userconf = novaConf.userConf)
+    }
+
+    fun getPilotNames() {
+        val p1Name = window.showTextInput("Pilot Name", "Player 1 Name?")
+        val p2Name = window.showTextInput("Pilot Name", "Player 2 Name?")
+        novaConf.p1Name = p1Name
+        novaConf.p2Name = p2Name
+    }
+
+    fun startSetup() {
+        dosboxConf.writeConfFiles(novaConf)
+        val dosboxConfPath = dosboxConf.getConfPath()
+        val separatorPosition = novaConf.dosboxPath.lastIndexOf('\\')
+        val exe = novaConf.dosboxPath.substring(separatorPosition + 1)
+        val hasCustomConf = novaConf.confPath.isNotBlank() && FileSystem.SYSTEM.exists(novaConf.confPath.toPath())
+        val args = listOfNotNull(
+            exe,
+            if(novaConf.userConf) "-userconf" else null,
+            if(hasCustomConf) "-conf \"${novaConf.confPath}\"" else null,
+            "-noconsole",
+            "-noautoexec",
+            "-conf \"$dosboxConfPath\"",
+            "-c \"mount c ${novaConf.omfPath}\"",
+            "-c \"c:\"",
+            "-c \"setup\"",
+            "-c \"exit\""
+        )
+        val command = args.joinToString(" ")
+        window.executeCommand(executable = novaConf.dosboxPath, command = command)
+        gameRunning = true
     }
 
     fun startReplay(path: Path) {
@@ -115,8 +190,9 @@ class NovaProject {
             if(userconf) "-userconf" else null,
             if(hasCustomConf) "-conf \"${novaConf.confPath}\"" else null,
             "-noconsole",
+            "-noautoexec",
             "-conf \"$dosboxConfPath\"",
-            "-c \"mount c ${novaConf.omfPath}\"",
+            "-c \"mount c \\\"${novaConf.omfPath}\\\"\"",
             "-c \"c:\"",
             "-c \"file0001 $omfParams\"",
             "-c \"exit\""
@@ -132,27 +208,83 @@ class NovaProject {
 //        }
     }
 
+    fun vsScreenStarted() {
+        p1struct.ptrAddr = readMemoryInt(p1PilotPointer).toLong()
+        p2struct.ptrAddr = readMemoryInt(p2PilotPointer).toLong()
+
+        for(n in 0 until 11) {
+            writeMemoryByte(p1struct.enchancementLevel + n, novaConf.enhancement.toUByte())
+            writeMemoryByte(p2struct.enchancementLevel + n, novaConf.enhancement.toUByte())
+        }
+
+        if(novaConf.p1Name?.isNotEmpty() == true) {
+            writeMemoryString(p1struct.name, novaConf.p1Name!!, 18)
+        }
+        if(novaConf.p2Name?.isNotEmpty() == true) {
+            writeMemoryString(p2struct.name, novaConf.p2Name!!, 18)
+        }
+    }
+
+    fun matchStarted() {
+
+    }
+
+    fun duringMatch() {
+//        val savedR = readMemoryByte(video.palette+3)
+//        val savedG = readMemoryByte(video.palette+4)
+//        val savedB = readMemoryByte(video.palette+5)
+//        for(c in 2 until 48) {
+//            val red = readMemoryByte(video.palette+c*3)
+//            val green = readMemoryByte(video.palette+c*3+1)
+//            val blue = readMemoryByte(video.palette+c*3+2)
+//            writeMemoryByte(video.palette+(c-1)*3, red)
+//            writeMemoryByte(video.palette+(c-1)*3+1, green)
+//            writeMemoryByte(video.palette+(c-1)*3+2, blue)
+//        }
+//        writeMemoryByte(video.palette+47*3, savedR)
+//        writeMemoryByte(video.palette+47*3+1, savedG)
+//        writeMemoryByte(video.palette+47*3+2, savedB)
+    }
+
+    fun getControllerList(): List<Controller> {
+        return window.getControllerList()
+    }
+
     fun dosBoxFinished() {
-        loadOmfConfig()
+        writeLog("DOSBox has terminated")
+        trainingMode = false
+        novaConf.checkErrors()
         gameRunning = false
         mainMenu.gameEnd()
+        loadOmfConfig()
     }
 
     private fun writeOmfConfig(singlePlayer: Boolean) {
         val configPath = novaConf.omfPath.toPath().div("SETUP.CFG")
-        FileSystem.SYSTEM.delete(path = configPath, mustExist = false)
-        FileSystem.SYSTEM.write(file = configPath, mustCreate = false) {
-            omfConfig?.buildFile(this, singlePlayer)
+        try {
+            FileSystem.SYSTEM.apply {
+                if(exists(configPath)) {
+                    if(omfConfig?.loadSuccess == true) {
+                        write(file = configPath, mustCreate = false) {
+                            omfConfig?.buildFile(this, singlePlayer)
+                        }
+                        writeLog("OMF configuration written")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            showErrorPopup("Could not write OMF configuration", e.message?:"Unknown Error")
         }
     }
 
     @OptIn(ExperimentalUnsignedTypes::class)
     private fun onStart(window: NovaWindow) {
         this.window = window
+
         val background = loadPcx("NETARENA.PCX".toPath())?: error("Couldn't load background NETARENA.PCX")
+        bgTex = window.loadTexture(background)
         val font1image = loadPcx("NETFONT1.PCX".toPath())?: error("Couldn't load font NETFONT1.PCX")
         val font2image = loadPcx("NETFONT2.PCX".toPath())?: error("Couldn't load font NETFONT2.PCX")
-        bgTex = window.loadTexture(background)
 
         val darkenerRaster = UByteArray(320*144*4)
         for(n in 0 until (320*144)) {
@@ -191,7 +323,10 @@ class NovaProject {
         val configPath = novaConf.omfPath.toPath().div(OMFConf.FILENAME)
         val fs = FileSystem.SYSTEM
         if (fs.exists(configPath)) {
+            writeLog("OMF configuration loaded")
             omfConfig = fs.read(file = configPath, readerAction = ::OMFConf)
+        } else {
+            writeLog("OMF configuration not found, skipping")
         }
     }
 
@@ -219,25 +354,31 @@ interface NovaWindow {
     fun startRender()
     fun endRender()
     //fun showText(textLine: String)
-    fun showText(textLine: String, font: Int, x: Int, y: Int, reverse: Boolean = false)
-    fun executeCommand(executable: String, args: List<String>)
+    fun showText(textLine: String, font: Int, x: Int, y: Int, align: TextAlignment = TextAlignment.LEFT)
+    fun executeCommand(executable: String, command: String)
     fun showFileChooser(start: String, prompt: String, filter: String, filterDesc: String): String
     fun showFolderChooser(start: String, prompt: String): String
+    fun showTextInput(title: String, prompt: String): String
     fun setJoystickEnabled(joyEnabled: Boolean)
     fun destroy()
-    fun enableTraining()
     fun loadFont(fontMapping: OmfFont, textureHandle: Int): Int
     fun loadTexture(image: PCXImage): Int
     @OptIn(ExperimentalUnsignedTypes::class)
     fun loadTextureFromRaster(raster: UByteArray, width: Int, height: Int): Int
     fun showImage(textureHandle: Int, x: Int, y: Int)
-    fun sendKeyEvent(mappedButton: ButtonMap, up: Boolean)
+    fun sendKeyEvent(mappedButton: ButtonMap, up: Boolean, useDummy: Boolean, recorded: Boolean = false)
+    fun getControllerList(): List<Controller>
+}
+
+enum class TextAlignment {
+    LEFT, RIGHT, CENTER
 }
 
 enum class ControlType {
     KEY, AXIS, BUTTON, HAT
 }
 
+@Serializable
 data class ButtonMap(
     val type: ControlType,
     val controlId: Int = -1,
@@ -275,11 +416,24 @@ fun String.toButtonMap(): ButtonMap {
     }
 }
 
-data class ControlMapping(
-    var up: ButtonMap,
-    var down: ButtonMap,
-    var left: ButtonMap,
-    var right: ButtonMap,
-    var punch: ButtonMap,
-    var kick: ButtonMap
-)
+class ControlMapping(map: MutableMap<String, ButtonMap>) {
+    var up by map
+    var down by map
+    var left by map
+    var right by map
+    var punch by map
+    var kick by map
+    var esc by map
+}
+
+class TrainingMapping(map: MutableMap<String, ButtonMap>) {
+    var resetLeft by map
+    var resetRight by map
+    var resetCenter by map
+    var record by map
+    var playback by map
+}
+
+enum class OMFInput {
+    UP, DOWN, LEFT, RIGHT, PUNCH, KICK
+}

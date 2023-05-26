@@ -4,7 +4,13 @@ import okio.*
 import kotlin.experimental.and
 
 fun loadPcx(path: Path): PCXImage? {
-    return FileSystem.SYSTEM.read(file = path, readerAction = ::loadPcx)
+    return try {
+        writeLog("Loading $path")
+        FileSystem.SYSTEM.read(file = path, readerAction = ::loadPcx)
+    } catch (e: Exception) {
+        showErrorPopup("Error Loading \"$path\"", e.message?:"Unknown Error")
+        PCXImage(ByteArray(320*200), UByteArray(768), 320, 200)
+    }
 }
 
 @Suppress("UNUSED_VARIABLE")
