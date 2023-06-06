@@ -21,7 +21,7 @@ expect fun showErrorPopup(title: String, message: String)
 
 expect fun writeLog(message: String)
 
-val debug = false
+val debug = true
 var trainingMode = false
 class NovaProject {
     private var quit = false
@@ -161,8 +161,8 @@ class NovaProject {
             "-c \"setup\"",
             "-c \"exit\""
         )
-        val command = args.joinToString(" ")
-        window.executeCommand(executable = novaConf.dosboxPath, command = command)
+        //val command = args.joinToString(" ")
+        window.executeCommand(executable = novaConf.dosboxPath, args = args)
         gameRunning = true
     }
 
@@ -355,7 +355,7 @@ interface NovaWindow {
     fun endRender()
     //fun showText(textLine: String)
     fun showText(textLine: String, font: Int, x: Int, y: Int, align: TextAlignment = TextAlignment.LEFT)
-    fun executeCommand(executable: String, command: String)
+    fun executeCommand(executable: String, args: List<String>)
     fun showFileChooser(start: String, prompt: String, filter: String, filterDesc: String): String
     fun showFolderChooser(start: String, prompt: String): String
     fun showTextInput(title: String, prompt: String): String

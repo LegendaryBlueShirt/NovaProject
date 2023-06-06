@@ -98,14 +98,16 @@ class NovaConf(private val location: Path) {
     }
 
     fun validateDosbox(): String? {
-        val fs = FileSystem.SYSTEM
-        val pathToDosbox = dosboxPath.toPath()
-        if (dosboxPath.isBlank() || !fs.exists(pathToDosbox)) {
-            return "DOSBox location not configured!"
-        } else if (!fs.metadata(pathToDosbox).isRegularFile) {
-            return "DOSBox location is not a file!"
-        }
         return null
+
+//        val fs = FileSystem.SYSTEM
+//        val pathToDosbox = dosboxPath.toPath()
+//        if (dosboxPath.isBlank() || !fs.exists(pathToDosbox)) {
+//            return "DOSBox location not configured!"
+//        } else if (!fs.metadata(pathToDosbox).isRegularFile) {
+//            return "DOSBox location is not a file!"
+//        }
+//        return null
     }
 
     fun validateOmfSetup(): List<String> {
