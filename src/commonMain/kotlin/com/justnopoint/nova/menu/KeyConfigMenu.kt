@@ -103,6 +103,36 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
         }
     }
 
+    override fun handleInput(input: ButtonMap) {
+        when(currentState) {
+            KeyConfigState.TRAININGAWAIT -> {
+                when(configKey) {
+                    0 -> project.novaConf.trainingConfig.record = input
+                    1 -> project.novaConf.trainingConfig.playback = input
+                    2 -> project.novaConf.trainingConfig.resetCenter = input
+                    3 -> project.novaConf.trainingConfig.resetLeft = input
+                    4 -> project.novaConf.trainingConfig.resetRight = input
+                }
+                currentState = KeyConfigState.TRAININGCONFIG
+            }
+            KeyConfigState.AWAIT -> {
+                when(configKey) {
+                    0 -> currentConfig.up = input
+                    1 -> currentConfig.down = input
+                    2 -> currentConfig.left = input
+                    3 -> currentConfig.right = input
+                    4 -> currentConfig.punch = input
+                    5 -> currentConfig.kick = input
+                    6 -> currentConfig.esc = input
+                }
+                currentState = KeyConfigState.CONFIGURE
+            }
+            else -> {
+                super.handleInput(input)
+            }
+        }
+    }
+
     override fun menuInput(menuInput: MenuInput, input: ButtonMap) {
         when(currentState) {
             KeyConfigState.CONFIGURE, KeyConfigState.MENU, KeyConfigState.TRAININGCONFIG -> {
@@ -135,28 +165,7 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
                     else -> {}
                 }
             }
-            KeyConfigState.TRAININGAWAIT -> {
-                when(configKey) {
-                    0 -> project.novaConf.trainingConfig.record = input
-                    1 -> project.novaConf.trainingConfig.playback = input
-                    2 -> project.novaConf.trainingConfig.resetCenter = input
-                    3 -> project.novaConf.trainingConfig.resetLeft = input
-                    4 -> project.novaConf.trainingConfig.resetRight = input
-                }
-                currentState = KeyConfigState.TRAININGCONFIG
-            }
-            KeyConfigState.AWAIT -> {
-                when(configKey) {
-                    0 -> currentConfig.up = input
-                    1 -> currentConfig.down = input
-                    2 -> currentConfig.left = input
-                    3 -> currentConfig.right = input
-                    4 -> currentConfig.punch = input
-                    5 -> currentConfig.kick = input
-                    6 -> currentConfig.esc = input
-                }
-                currentState = KeyConfigState.CONFIGURE
-            }
+            else -> { /** Should have been handled already **/ }
         }
 
 
@@ -206,17 +215,20 @@ class KeyConfigMenu(project: NovaProject) : NovaMenu(project) {
         }
     }
 
-    fun startConfig() {
-        when (selectedIndex) {
+    fun startConfig(): Boolean {
+        return when (selectedIndex) {
             0 -> {
-                currentState = KeyConfigState.CONTROLLERS
+                //currentState = KeyConfigState.CONTROLLERS
+                false
             }
             3 -> {
                 currentState = KeyConfigState.TRAININGCONFIG
+                true
             }
             else -> {
                 currentState = KeyConfigState.CONFIGURE
                 currentConfig = if (selectedIndex == 1) project.novaConf.p1Config else project.novaConf.p2Config
+                true
             }
         }
     }

@@ -3,6 +3,9 @@ package com.justnopoint.nova
 // Important Pointers
 const val p1PilotPointer = 0x1F7978L
 const val p2PilotPointer = 0x1F797CL
+const val selectScreenTell = 0x15E310L
+const val p1Select = 0x1F77C6L
+const val p2Select = 0x1F4CDEL
 
 val p1struct = PilotStruct(0)
 val p2struct = PilotStruct(0)
@@ -35,6 +38,7 @@ class HarStruct(private val ptrAddr: Long) {
 
 class VideoStruct(private val ptrAddr: Long) {
     val palette get() = ptrAddr+6687
+    val selectpalette get() = ptrAddr+8223
 }
 
 

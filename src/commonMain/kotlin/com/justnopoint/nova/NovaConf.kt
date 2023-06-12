@@ -56,6 +56,8 @@ class NovaConf(private val location: Path) {
     var enhancement: Int by configuration::enhancement
     var p1Name: String? by configuration::p1name
     var p2Name: String? by configuration::p2name
+    val p1Colors = UByteArray(9)
+    val p2Colors = UByteArray(9)
 
     var errors: List<String> = emptyList()
 
@@ -183,7 +185,7 @@ data class NovaConfFile(
     var attract: Boolean = false,
     var enhancement: Int = 0,
     var p1name: String? = "Player 1",
-    var p2name: String? = "Player 2"
+    var p2name: String? = "Player 2",
 )
 
 private fun getDefaultP1Config(): MutableMap<String, ButtonMap> {

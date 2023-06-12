@@ -27,9 +27,10 @@ class GameMenu(project: NovaProject) : NovaMenu(project) {
                 renderText(window, "Two Player Versus", 18 * scale, 20 * scale, selectedIndex == 0, frame)
                 renderText(window, "Training Mode", 18 * scale, 33 * scale, selectedIndex == 1, frame)
                 renderText(window, "Normal Start", 18 * scale, 46 * scale, selectedIndex == 2, frame)
-                renderText(window, "Pilot Names", 18 * scale, 59 * scale, selectedIndex == 3, frame)
-                renderText(window, "Enhancement", 18 * scale, 72 * scale, selectedIndex == 4, frame)
-                renderText(window, "${project.novaConf.enhancement}", 180 * scale, 72 * scale, selectedIndex == 4, frame)
+                renderText(window, "Enhancement", 18 * scale, 72 * scale, selectedIndex == 3, frame)
+                renderText(window, "${project.novaConf.enhancement}", 180 * scale, 72 * scale, selectedIndex == 3, frame)
+                renderText(window, "Pilot 1", 18 * scale, 85 * scale, selectedIndex == 4, frame)
+                renderText(window, "Pilot 2", 180 * scale, 85 * scale, selectedIndex == 5, frame)
 
                 val hintText = when (selectedIndex) {
                     0 -> "Fight against another player!"
@@ -74,14 +75,18 @@ class GameMenu(project: NovaProject) : NovaMenu(project) {
                 currentState = State.GAME
             }
             3 -> {
-                project.getPilotNames()
-                currentState = State.MENU
-            }
-            4 -> {
                 project.novaConf.enhancement++
                 if(project.novaConf.enhancement > 3) {
                     project.novaConf.enhancement = 0
                 }
+                currentState = State.MENU
+            }
+            4 -> {
+                project.getP1PilotName()
+                currentState = State.MENU
+            }
+            5 -> {
+                project.getP2PilotName()
                 currentState = State.MENU
             }
         }

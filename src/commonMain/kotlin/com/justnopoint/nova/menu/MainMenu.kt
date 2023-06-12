@@ -148,8 +148,9 @@ class MainMenu(project: NovaProject) : NovaMenu(project) {
                 }
             }
             1 -> {
-                currentState = State.KEYCONFIG1
-                keyConfigMenu.startConfig()
+                if(keyConfigMenu.startConfig()) {
+                    currentState = State.KEYCONFIG1
+                }
             }
             2 -> {
                 if(canPlay()) {

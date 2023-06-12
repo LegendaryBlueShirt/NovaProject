@@ -4,9 +4,20 @@ import kotlin.system.getTimeMillis
 
 fun getTrainingModeInput(code: Int) {
     when(code) {
+        p1DownCode -> checkSecret(p1Select)
+        p2DownCode -> checkSecret(p2Select)
         //VIRT_F1 -> resetLeftSide()
         //VIRT_F2 -> resetCenter()
         //VIRT_F3 -> resetRightSide()
+    }
+}
+
+fun checkSecret(selectorAddress: Long) {
+    if(!isVsScreen() && !isMatchStarted()) {
+        val currentSelection = readMemoryByte(selectorAddress).toInt()
+        if(currentSelection == 5) {
+            writeMemoryByte(selectorAddress, 10u)
+        }
     }
 }
 
@@ -74,12 +85,18 @@ fun isVsScreen(): Boolean {
     return readMemoryInt(videoCorner) == vsScreenValue
 }
 
+fun isHarSelect(): Boolean {
+    return readMemoryInt(selectScreenTell).toInt() < 0
+}
+
 var dummyActive = false
 var recordingActive = false
 var dummyPlaybackIndex = -1
 var lastTimestamp = 0L
 val recordedInputs = mutableListOf<RecordedInput>()
 var mapping: TrainingMapping? = null
+var p1DownCode: Int? = null
+var p2DownCode: Int? = null
 
 fun toggleDummyRecording() {
     dummyPlaybackIndex = -1
@@ -136,3 +153,8 @@ expect fun writeMemoryInt(address: Long, value: UInt)
 expect fun writeMemoryShort(address: Long, value: UShort)
 expect fun writeMemoryByte(address: Long, value: UByte)
 expect fun writeMemoryString(address: Long, value: String, limit: Int)
+fun writeMemory(address: Long, value: Collection<UByte>) {
+    value.forEachIndexed { index, uByte ->
+        writeMemoryByte(address+index, uByte)
+    }
+}

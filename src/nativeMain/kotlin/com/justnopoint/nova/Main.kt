@@ -88,6 +88,16 @@ class Win32Container: NovaWindowSDL() {
             conf.p1Config.punch to conf.p2Config.punch,
             conf.p1Config.kick to conf.p2Config.kick
         )
+        p1DownCode = if(conf.p1Config.down.type == ControlType.KEY) {
+            conf.p1Config.down.scancode
+        } else {
+            null
+        }
+        p2DownCode = if(conf.p2Config.down.type == ControlType.KEY) {
+            conf.p2Config.down.scancode
+        } else {
+            null
+        }
         val boundInputs = conf.getBoundInputs(includeEsc = true)
         val usedScancodes = boundInputs.filter { it.type == ControlType.KEY }.map { it.scancode }
         val possibleMappings = sdlKeyMapping.keys.filterNot { key ->
@@ -169,6 +179,21 @@ class Win32Container: NovaWindowSDL() {
             )
         return selectedFile?.toKStringFromUtf16()?:""
     }
+
+    override fun showColorChooser(prompt: String): List<UByte>? = memScoped {
+        val colorArray = allocArray<UByteVar>(3)
+        colorArray[0] = 0u
+        colorArray[1] = 0u
+        colorArray[2] = 0u
+        val result = tinyfd_colorChooserW(
+            aTitle = prompt.wcstr,
+            aDefaultHexRGB = null,
+            aDefaultRGB = colorArray,
+            aoResultRGB = colorArray
+        )
+        if(result == null) return null
+        return listOf(colorArray[0],colorArray[1],colorArray[2])
+    }
 }
 
 var entryPointer = 0L
@@ -177,7 +202,6 @@ val shortPointer = MemScope().alloc<UWORD>(0u)
 val intPointer = MemScope().alloc<ULONG>(0u)
 
 fun handleWinKey(keyPtr: Long) {
-    if(!trainingMode) return
     processInfo?.pointed?.let { process ->
         GetExitCodeProcess(process.hProcess, processExitCode.ptr)
         if (processExitCode.value == STILL_ACTIVE) {

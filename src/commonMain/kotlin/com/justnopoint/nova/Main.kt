@@ -20,7 +20,7 @@ expect fun showErrorPopup(title: String, message: String)
 
 expect fun writeLog(message: String)
 
-val debug = false
+val debug = true
 var trainingMode = false
 class NovaProject {
     private var quit = false
@@ -41,6 +41,7 @@ class NovaProject {
     private var gameRunning = false
     private var matchStarted = false
     private var vsScreen = false
+    private var harSelect = false
 
     var p1Controller: Controller? = null
     var p2Controller: Controller? = null
@@ -90,7 +91,15 @@ class NovaProject {
                     } else {
                         if (!isVsScreen()) {
                             vsScreen = false
+                        } else {
+                            duringVs()
                         }
+                    }
+                    if(!vsScreen && !matchStarted) {
+                        harSelect = isHarSelect()
+                        duringSelect()
+                    } else {
+                        harSelect = false
                     }
                 }
             }
@@ -108,6 +117,19 @@ class NovaProject {
                 mainMenu.handleInput(input)
             }
         } else {
+            if(!vsScreen && !matchStarted && (input.type != ControlType.KEY)) {
+                if(input == novaConf.p1Config.down) {
+                    val currentSelection = readMemoryByte(p1Select).toInt()
+                    if(currentSelection == 5) {
+                        writeMemoryByte(p1Select, 10u)
+                    }
+                } else if(input == novaConf.p2Config.down) {
+                    val currentSelection = readMemoryByte(p2Select).toInt()
+                    if(currentSelection == 5) {
+                        writeMemoryByte(p2Select, 10u)
+                    }
+                }
+            }
             window.sendKeyEvent(input, release, dummyActive)
         }
     }
@@ -135,11 +157,46 @@ class NovaProject {
         startDosBox(saveReplays = false, userconf = novaConf.userConf)
     }
 
-    fun getPilotNames() {
+    fun getP1PilotName() {
         val p1Name = window.showTextInput("Pilot Name", "Player 1 Name?")
-        val p2Name = window.showTextInput("Pilot Name", "Player 2 Name?")
         novaConf.p1Name = p1Name
+        if(p1Name.isBlank()) return
+        window.showColorChooser("Primary Color")?.let {
+            novaConf.p1Colors[0] = it[0]
+            novaConf.p1Colors[1] = it[1]
+            novaConf.p1Colors[2] = it[2]
+        }
+        window.showColorChooser("Secondary Color")?.let {
+            novaConf.p1Colors[3] = it[0]
+            novaConf.p1Colors[4] = it[1]
+            novaConf.p1Colors[5] = it[2]
+        }
+        window.showColorChooser("Tertiary Color")?.let {
+            novaConf.p1Colors[6] = it[0]
+            novaConf.p1Colors[7] = it[1]
+            novaConf.p1Colors[8] = it[2]
+        }
+    }
+
+    fun getP2PilotName() {
+        val p2Name = window.showTextInput("Pilot Name", "Player 2 Name?")
         novaConf.p2Name = p2Name
+        if(p2Name.isBlank()) return
+        window.showColorChooser("Primary Color")?.let {
+            novaConf.p2Colors[0] = it[0]
+            novaConf.p2Colors[1] = it[1]
+            novaConf.p2Colors[2] = it[2]
+        }
+        window.showColorChooser("Secondary Color")?.let {
+            novaConf.p2Colors[3] = it[0]
+            novaConf.p2Colors[4] = it[1]
+            novaConf.p2Colors[5] = it[2]
+        }
+        window.showColorChooser("Tertiary Color")?.let {
+            novaConf.p2Colors[6] = it[0]
+            novaConf.p2Colors[7] = it[1]
+            novaConf.p2Colors[8] = it[2]
+        }
     }
 
     fun startSetup() {
@@ -218,14 +275,45 @@ class NovaProject {
 
         if(novaConf.p1Name?.isNotEmpty() == true) {
             writeMemoryString(p1struct.name, novaConf.p1Name!!, 18)
+
+            setPlayerColor(96, novaConf.p1Colors[0], novaConf.p1Colors[1], novaConf.p1Colors[2])
+            setPlayerColor(48, novaConf.p1Colors[3], novaConf.p1Colors[4], novaConf.p1Colors[5])
+            setPlayerColor(0, novaConf.p1Colors[6], novaConf.p1Colors[7], novaConf.p1Colors[8])
         }
         if(novaConf.p2Name?.isNotEmpty() == true) {
             writeMemoryString(p2struct.name, novaConf.p2Name!!, 18)
+
+            setPlayerColor(240, novaConf.p2Colors[0], novaConf.p2Colors[1], novaConf.p2Colors[2])
+            setPlayerColor(192, novaConf.p2Colors[3], novaConf.p2Colors[4], novaConf.p2Colors[5])
+            setPlayerColor(144, novaConf.p2Colors[6], novaConf.p2Colors[7], novaConf.p2Colors[8])
+        }
+    }
+
+    private fun setPlayerColor(startIndex: Int, r: UByte, g: UByte, b: UByte) {
+        val color = generateFlatColor(r, g, b)
+        when(startIndex) {
+            0, 144 -> {
+                writeMemory(video.palette+startIndex+3, color.drop(3))
+                writeMemory(video.selectpalette+startIndex+3, color.drop(3))
+            }
+            else -> {
+                writeMemory(video.palette+startIndex, color)
+                writeMemory(video.selectpalette+startIndex, color)
+            }
         }
     }
 
     fun matchStarted() {
-
+        if(novaConf.p1Name?.isNotEmpty() == true) {
+            setPlayerColor(96, novaConf.p1Colors[0], novaConf.p1Colors[1], novaConf.p1Colors[2])
+            setPlayerColor(48, novaConf.p1Colors[3], novaConf.p1Colors[4], novaConf.p1Colors[5])
+            setPlayerColor(0, novaConf.p1Colors[6], novaConf.p1Colors[7], novaConf.p1Colors[8])
+        }
+        if(novaConf.p2Name?.isNotEmpty() == true) {
+            setPlayerColor(240, novaConf.p2Colors[0], novaConf.p2Colors[1], novaConf.p2Colors[2])
+            setPlayerColor(192, novaConf.p2Colors[3], novaConf.p2Colors[4], novaConf.p2Colors[5])
+            setPlayerColor(144, novaConf.p2Colors[6], novaConf.p2Colors[7], novaConf.p2Colors[8])
+        }
     }
 
     fun duringMatch() {
@@ -243,6 +331,47 @@ class NovaProject {
 //        writeMemoryByte(video.palette+47*3, savedR)
 //        writeMemoryByte(video.palette+47*3+1, savedG)
 //        writeMemoryByte(video.palette+47*3+2, savedB)
+    }
+
+    var skip = 0
+    fun duringSelect() {
+        skip++
+        if((skip % 60) != 0) return
+        if(harSelect) {
+            if (novaConf.p1Name?.isNotEmpty() == true) {
+                writeMemoryString(p1struct.name, novaConf.p1Name!!, 18)
+
+                setPlayerColor(96, novaConf.p1Colors[0], novaConf.p1Colors[1], novaConf.p1Colors[2])
+                setPlayerColor(48, novaConf.p1Colors[3], novaConf.p1Colors[4], novaConf.p1Colors[5])
+                setPlayerColor(0, novaConf.p1Colors[6], novaConf.p1Colors[7], novaConf.p1Colors[8])
+            }
+            if (novaConf.p2Name?.isNotEmpty() == true) {
+                writeMemoryString(p2struct.name, novaConf.p2Name!!, 18)
+
+                setPlayerColor(240, novaConf.p2Colors[0], novaConf.p2Colors[1], novaConf.p2Colors[2])
+                setPlayerColor(192, novaConf.p2Colors[3], novaConf.p2Colors[4], novaConf.p2Colors[5])
+                setPlayerColor(144, novaConf.p2Colors[6], novaConf.p2Colors[7], novaConf.p2Colors[8])
+            }
+        }
+    }
+
+    fun duringVs() {
+        skip++
+        if((skip % 60) != 0) return
+        if(novaConf.p1Name?.isNotEmpty() == true) {
+            writeMemoryString(p1struct.name, novaConf.p1Name!!, 18)
+
+            setPlayerColor(96, novaConf.p1Colors[0], novaConf.p1Colors[1], novaConf.p1Colors[2])
+            setPlayerColor(48, novaConf.p1Colors[3], novaConf.p1Colors[4], novaConf.p1Colors[5])
+            setPlayerColor(0, novaConf.p1Colors[6], novaConf.p1Colors[7], novaConf.p1Colors[8])
+        }
+        if(novaConf.p2Name?.isNotEmpty() == true) {
+            writeMemoryString(p2struct.name, novaConf.p2Name!!, 18)
+
+            setPlayerColor(240, novaConf.p2Colors[0], novaConf.p2Colors[1], novaConf.p2Colors[2])
+            setPlayerColor(192, novaConf.p2Colors[3], novaConf.p2Colors[4], novaConf.p2Colors[5])
+            setPlayerColor(144, novaConf.p2Colors[6], novaConf.p2Colors[7], novaConf.p2Colors[8])
+        }
     }
 
     fun getControllerList(): List<Controller> {
@@ -358,6 +487,7 @@ interface NovaWindow {
     fun showFileChooser(start: String, prompt: String, filter: String, filterDesc: String): String
     fun showFolderChooser(start: String, prompt: String): String
     fun showTextInput(title: String, prompt: String): String
+    fun showColorChooser(prompt: String): List<UByte>?
     fun setJoystickEnabled(joyEnabled: Boolean)
     fun destroy()
     fun loadFont(fontMapping: OmfFont, textureHandle: Int): Int
